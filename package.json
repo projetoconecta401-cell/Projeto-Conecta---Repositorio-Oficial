@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Conexão Free — marketplace de diárias e serviços freelancer (protótipo web, dados mockados)",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

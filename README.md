@@ -143,7 +143,10 @@ modais, toasts e botões flutuantes com `position: absolute`, nunca `fixed`).
 O build é um site estático: basta publicar a pasta `dist/`.
 
 - **Netlify:** comando de build `npm run build`, pasta de publicação `dist`.
-- **Vercel:** framework "Vite", build `npm run build`, saída `dist`.
+- **Vercel:** já configurado em `vercel.json` (framework Vite, build `npm run build`, saída
+  `dist`, `/app` redireciona para `/app/`, cache longo para `assets/`). Em vercel.com:
+  **Add New → Project → Import** o repositório do GitHub e clique em **Deploy**, sem mudar
+  nenhuma opção. Cada `git push` na `main` publica uma nova versão automaticamente.
 - **GitHub Pages:** rode `npm run build` e publique o conteúdo de `dist/`
   (por exemplo, com a action oficial `actions/deploy-pages`). Como os caminhos são
   relativos, funciona em `https://<usuario>.github.io/<repositorio>/`.
