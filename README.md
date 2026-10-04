@@ -144,7 +144,8 @@ O app usa o Supabase para **contas reais**, **vagas publicadas** e **mensagens d
 
 | Recurso | Como funciona |
 |---|---|
-| Cadastro | Fluxo completo do app; a conta é criada ao aceitar os Termos, pela Edge Function `cadastrar` (já confirmada, sem e-mail de confirmação). Valida e-mail, senha (6+) e maioridade (18+) também no servidor. |
+| Cadastro | O e-mail é confirmado com um **código de 6 dígitos enviado de verdade** (Edge Function `codigo-email`, pelo Gmail do projeto). A conta é criada ao aceitar os Termos, pela Edge Function `cadastrar`, que exige o código e valida e-mail, senha (6+) e maioridade (18+) no servidor. |
+| Esqueci minha senha | Código de 6 dígitos por e-mail + nova senha. A mensagem é sempre genérica (não revela se a conta existe). |
 | Login / sair | E-mail e senha (Supabase Auth). A sessão fica no navegador e é renovada sozinha. |
 | Excluir conta | Perfil → Excluir conta (digitar EXCLUIR). Edge Function `excluir-conta` apaga a conta, as vagas e as mensagens dela. |
 | Vagas | Todos veem o mural; publicar exige estar logado; só quem publicou exclui. |
@@ -155,9 +156,13 @@ O app usa o Supabase para **contas reais**, **vagas publicadas** e **mensagens d
    para o GitHub. Nunca use a chave *secret*/*service_role* aqui.
 2. **Banco:** rode, em ordem, os arquivos de `supabase/migrations/` no SQL Editor
    (já aplicados no projeto `yrnxekmviprbhlviuwvt`).
-3. **Edge Functions:** `supabase/functions/cadastrar` (verify_jwt = false; valida a chave
-   publishable) e `supabase/functions/excluir-conta` (verify_jwt = true). Já publicadas.
-4. **Vercel:** cadastre `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` em
+3. **Edge Functions:** `cadastrar` e `codigo-email` (verify_jwt = false; validam a chave
+   publishable) e `excluir-conta` (verify_jwt = true), em `supabase/functions/`. Já publicadas.
+4. **Envio de e-mail:** em **Edge Functions → Secrets** do Supabase, `SMTP_USERNAME` (o Gmail
+   remetente) e `SMTP_PASSWORD` (senha de app do Google, criada em
+   myaccount.google.com/apppasswords; exige verificação em duas etapas). Limite do Gmail:
+   ~500 e-mails/dia. Códigos valem 10 min, 5 tentativas, 1 envio/min e 5/h por e-mail.
+5. **Vercel:** cadastre `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` em
    **Settings → Environment Variables** e faça um novo deploy.
 
 Código: `src/lib/supabase.js` (cliente), `src/lib/auth.js` (contas), `src/AuthGate.jsx`
@@ -167,10 +172,9 @@ Sem as variáveis, o app volta ao modo protótipo (login simulado e dados de exe
 **Ainda simulado / limitações:**
 - **Google e Facebook:** os botões levam ao cadastro por e-mail e senha. Login social real
   exige criar apps OAuth no Google Cloud e no Meta for Developers e configurar no Supabase.
-- **E-mail:** sem serviço de e-mail próprio (SMTP), o Supabase não envia e-mails a usuários
-  comuns. Por isso o código de 6 dígitos do cadastro é simulado e "Esqueci minha senha"
-  mostra só a mensagem genérica.
-- **Sem limite de cadastros:** qualquer pessoa pode criar contas (sem prova de posse do e-mail).
+- **E-mail pelo Gmail:** bom para protótipo (~500/dia; os primeiros podem cair no spam). Para
+  produção, trocar por um serviço como o Resend com domínio próprio.
+- A verificação por SMS (celular) continua simulada.
 - Candidatura, aceite, check-in, avaliações, KYC e dados bancários continuam em memória.
 
 ## Como publicar
@@ -193,7 +197,7 @@ Não precisa de regra de redirecionamento: a landing é `dist/index.html` e o ap
 
 | Funcionalidade | No protótipo | Em produção |
 |---|---|---|
-| Login, cadastro, recuperação de senha | Contas reais no Supabase Auth; recuperação de senha ainda simulada | Envio de e-mail (SMTP) para confirmação e recuperação |
+| Login, cadastro, recuperação de senha | Contas reais no Supabase Auth; código por e-mail real (Gmail) | Serviço de e-mail profissional com domínio próprio |
 | Verificação de e-mail (código de 6 dígitos) e celular | Código simulado | Envio de e-mail/SMS |
 | Documento (RG/CNH), selfie ao vivo, KYC | Captura local, nada é enviado | Upload seguro + verificação de identidade (LGPD) |
 | Dados bancários e chave PIX | Só em memória | Armazenamento criptografado / provedor de pagamento |
