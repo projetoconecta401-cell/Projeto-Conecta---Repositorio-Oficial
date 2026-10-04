@@ -79,3 +79,29 @@ DOCUMENTACAO_PASSOS.md           Este arquivo
 7. Fase 2: landing page em `/` e app em `/app/` (duas páginas no Vite, sem redirecionamento
    no servidor). Textos da landing em `src/landing/content.js`.
 8. README com guia de instalação, edição e publicação.
+
+---
+
+## Rodada 5 — Ambiente local, Git e GitHub — 03/10/2026
+1. **Como rodar no Windows:** `cd "C:\Users\Win10\Desktop\projeto conecta"`, `npm install` (1ª vez)
+   e `npm run dev`. Se o PowerShell bloquear scripts (erro "npm.ps1 não pode ser carregado"),
+   usar `npm.cmd` no lugar de `npm`. Dica registrada no README.
+2. **Porta do servidor:** o `vite.config.js` aceita a variável `PORT` (padrão 5173 no dev e 4173
+   no preview), para dois servidores do mesmo projeto não disputarem a porta.
+3. **Repositório oficial:** https://github.com/projetoconecta401-cell/Projeto-Conecta---Repositorio-Oficial
+   - `origin` aponta para o repositório oficial; o antigo (`Projeto-Conecta---Repositorioss`)
+     ficou como remote `antigo`, só para registro.
+   - Histórico completo enviado (commits pequenos em português, um por etapa).
+   - Fora do repositório (`.gitignore`): `node_modules/`, `dist/`, `.claude/`, `.env`.
+4. **Login no GitHub:** via GitHub CLI (`gh auth login` → GitHub.com → HTTPS → navegador).
+   Conta ativa: `projetoconecta401-cell`. Nenhuma senha ou token foi gravado em arquivos ou
+   commits. Para usar outra conta: sair do GitHub no navegador, `gh auth login` de novo e
+   `gh auth switch` para alternar; a outra conta precisa ser colaboradora do repositório.
+5. **Fluxo do dia a dia:** `git add .` → `git commit -m "o que mudou"` → `git push`.
+
+### Estado atual
+- Landing: `/` · App: `/app/` · build estático em `dist/` (Netlify, Vercel ou GitHub Pages).
+- BUG-501 não reproduzido; Error Boundary e ids estáveis mantidos.
+- Pendências: backend real (auth, KYC, PIX, persistência, chat em tempo real); decisão
+  React web × React Native (RNF-006); telas do contratante após o aceite (hoje reutilizam
+  as do prestador); backlog da Fase 2 do produto.
