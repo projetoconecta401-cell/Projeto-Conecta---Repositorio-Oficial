@@ -35,6 +35,9 @@ const appTrailingSlash = () => {
 export default defineConfig({
   plugins: [react(), appTrailingSlash()],
   base: "./",
+  // Porta padrão 5173 (dev) / 4173 (preview); a variável PORT, se definida, tem prioridade.
+  server: { port: Number(process.env.PORT) || 5173 },
+  preview: { port: Number(process.env.PORT) || 4173 },
   build: {
     rolldownOptions: {
       input: {
