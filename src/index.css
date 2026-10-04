@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Página externa: mesmo comportamento do site/index.html publicado. */
+:root {
+  --app-bg-outer: #e2e8f0;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--app-bg-outer);
+  overscroll-behavior: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --app-bg-outer: #0f172a; }
+}
+:root[data-theme="dark"] { --app-bg-outer: #0f172a; }
+#root {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-x: auto;
+}
+
+/*
+ * Celular: o frame do app ocupa a tela inteira (sem moldura de aparelho).
+ * Só CSS — o componente App não muda. O seletor com #root vence as
+ * classes utilitárias do frame (h-[820px], max-w-sm, rounded, borda, sombra).
+ * As áreas seguras (notch / barra inferior) ficam por conta do #root.
+ */
+@media (max-width: 640px) {
+  :root {
+    --app-bg-outer: #f8fafc; /* = bg-slate-50 do app, para emendar com a safe-area */
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --app-bg-outer: #f8fafc; }
+  }
+  #root {
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+      env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    height: 100dvh;
+    min-height: 0;
+    align-items: stretch;
+  }
+  #root > div {
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

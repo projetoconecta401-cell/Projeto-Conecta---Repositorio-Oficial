@@ -3,7 +3,7 @@ node_modules/
 dist/
 
 # Configurações locais (podem conter dados da máquina)
-.claude/settings.local.json
+.claude/
 .env
 .env.*
 !.env.example

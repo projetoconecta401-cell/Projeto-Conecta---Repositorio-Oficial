@@ -6,4 +6,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  build: {
+    // Aviso informativo do Vite 8 (tempo do Tailwind no build), não é erro.
+    rolldownOptions: { checks: { pluginTimings: false } },
+  },
 });
