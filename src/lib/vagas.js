@@ -1,4 +1,7 @@
 import { supabase } from "./supabase.js";
+import { getAutorId } from "./identidade.js";
+
+export { getAutorId };
 
 /*
  * Vagas no Supabase (tabela public.vagas — veja supabase/migrations/).
@@ -8,32 +11,6 @@ import { supabase } from "./supabase.js";
  */
 
 const TABELA = "vagas";
-const AUTOR_KEY = "conexaofree:autor_id";
-
-const novoId = () =>
-  globalThis.crypto?.randomUUID
-    ? globalThis.crypto.randomUUID()
-    : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
-        (c ^ (Math.random() * 16) >> (c / 4)).toString(16)
-      );
-
-let autorIdEmMemoria = null;
-
-/* Identificador anônimo deste navegador (não é login nem segredo): marca as vagas
-   publicadas aqui como "Você", para aparecerem em "Minhas Vagas Criadas". */
-export function getAutorId() {
-  try {
-    let id = localStorage.getItem(AUTOR_KEY);
-    if (!id) {
-      id = novoId();
-      localStorage.setItem(AUTOR_KEY, id);
-    }
-    return id;
-  } catch {
-    autorIdEmMemoria ||= novoId();
-    return autorIdEmMemoria;
-  }
-}
 
 /* "R$ 1.200,50" / "180" / "180,5" -> número (ou NaN). */
 export function parseValor(texto) {

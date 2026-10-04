@@ -138,7 +138,7 @@ modais, toasts e botões flutuantes com `position: absolute`, nunca `fixed`).
 
 ---
 
-## Supabase (vagas dinâmicas)
+## Supabase (vagas e chat)
 
 O formulário **Publicar Vaga** salva no Supabase e o **Mural de Vagas** carrega as vagas
 do banco, visíveis para todos. Não há login: qualquer pessoa pode ver e publicar vagas.
@@ -147,12 +147,20 @@ As vagas de exemplo (mock) continuam aparecendo abaixo das vagas do banco.
 1. **Variáveis:** copie `.env.example` para `.env` e preencha com a URL e a chave
    *publishable* do projeto (Dashboard → Project Settings → API Keys). O `.env` não vai
    para o GitHub. Nunca use a chave *secret*/*service_role* aqui.
-2. **Tabela:** no Dashboard do Supabase, abra **SQL Editor**, cole o conteúdo de
-   `supabase/migrations/20261003120000_cria_tabela_vagas.sql` e clique em **Run**.
+2. **Tabelas:** no Dashboard do Supabase, abra **SQL Editor** e rode, em ordem, os arquivos de
+   `supabase/migrations/` (já aplicados no projeto `yrnxekmviprbhlviuwvt`).
 3. **Vercel:** em **Settings → Environment Variables**, cadastre
    `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` e faça um novo deploy.
 
-Código: `src/lib/supabase.js` (cliente) e `src/lib/vagas.js` (ler, validar e publicar).
+Código: `src/lib/supabase.js` (cliente), `src/lib/vagas.js` (ler, validar e publicar vagas)
+e `src/lib/mensagens.js` (chat).
+
+**Chat salvo:** as mensagens de texto do chat da vaga e do chat direto ficam na tabela
+`mensagens` e voltam ao reabrir o app. Sem login, cada navegador tem uma **chave anônima**
+(`src/lib/identidade.js`, guardada no localStorage) enviada no cabeçalho `x-chat-key`; a regra
+do banco só devolve as mensagens daquela chave, então ninguém lê as conversas dos outros.
+Limpar os dados do site no navegador (ou trocar de aparelho) = começar com o chat vazio.
+Áudios do chat continuam só na tela.
 Sem as variáveis, o app funciona só com os dados de exemplo.
 
 **Segurança (RLS):** leitura e inclusão abertas; **alterar e excluir pela API é bloqueado**.
@@ -183,9 +191,9 @@ Não precisa de regra de redirecionamento: a landing é `dist/index.html` e o ap
 | Verificação de e-mail (código de 6 dígitos) e celular | Código simulado | Envio de e-mail/SMS |
 | Documento (RG/CNH), selfie ao vivo, KYC | Captura local, nada é enviado | Upload seguro + verificação de identidade (LGPD) |
 | Dados bancários e chave PIX | Só em memória | Armazenamento criptografado / provedor de pagamento |
-| Vagas, candidaturas, avaliações, notificações | Estado React em memória | Banco de dados + API + push |
+| Vagas, candidaturas, avaliações, notificações | Vagas publicadas no Supabase; o resto em memória | Banco de dados + API + push |
 | Endereço da vaga antes do aceite | Escondido na tela | A API nem envia o endereço antes da aprovação |
-| Chat (texto e áudio) | Em memória; áudio é URL local temporária | Mensageria em tempo real + armazenamento de mídia |
+| Chat (texto e áudio) | Texto salvo no Supabase por navegador (chave anônima); áudio só na tela | Login, mensagens entre usuários reais em tempo real e armazenamento de áudio |
 | Mapa | Posições estimadas; distância por Haversine | Geocodificação real dos endereços |
 | Nota das empresas | Valor fixo (mock) | Média calculada das avaliações |
 

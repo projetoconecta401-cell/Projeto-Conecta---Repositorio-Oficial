@@ -1,4 +1,4 @@
-import { CreditCard, Wallet, X, Send, Calendar, CheckCircle2, Smile } from "lucide-react";
+import { CreditCard, Wallet, X, Send, Calendar, CheckCircle2, Smile, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { AudioMessageBubble } from "../../components/chat/AudioMessageBubble.jsx";
 import { EmojiPickerPopover } from "../../components/chat/EmojiPickerPopover.jsx";
@@ -6,6 +6,7 @@ import { VoiceRecorderButton } from "../../components/chat/VoiceRecorderButton.j
 import { ApplicationStatusPill } from "../../components/jobs/ApplicationStatusPill.jsx";
 import { CancelReasonModal } from "../../components/jobs/CancelReasonModal.jsx";
 import { Screen, TopBar, Pill } from "../../components/ui.jsx";
+import { conversaDaVaga, listarMensagens, mesclarMensagens, novaMensagem, salvarMensagem } from "../../lib/mensagens.js";
 
 export function ChatScreen({ job, onBack, onComplete, onCancel }) {
   const [showPix, setShowPix] = useState(false);
@@ -16,7 +17,22 @@ export function ChatScreen({ job, onBack, onComplete, onCancel }) {
   ]);
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
+  const [sendError, setSendError] = useState("");
   const endRef = useRef(null);
+  const conversa = conversaDaVaga(job.id);
+
+  // Histórico salvo no Supabase (só as mensagens deste navegador).
+  useEffect(() => {
+    let cancelled = false;
+    listarMensagens(conversa)
+      .then((salvas) => {
+        if (!cancelled && salvas.length) setMessages((m) => mesclarMensagens(m, salvas));
+      })
+      .catch((err) => !cancelled && setSendError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [conversa]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -25,8 +41,11 @@ export function ChatScreen({ job, onBack, onComplete, onCancel }) {
     const value = text.trim();
     if (!value) return;
     try {
-      setMessages((m) => [...m, { id: `msg-${Date.now()}-${m.length}`, from: "me", text: value }]);
+      const msg = novaMensagem(value); // id estável: o mesmo na tela e no banco
+      setMessages((m) => [...m, msg]);
       setText("");
+      setSendError("");
+      salvarMensagem(conversa, msg).catch((err) => setSendError(err.message));
     } catch (err) {
       /* nunca deixa o envio quebrar a tela inteira do chat */
     }
@@ -104,6 +123,11 @@ export function ChatScreen({ job, onBack, onComplete, onCancel }) {
         </div>
       </div>
 
+      {sendError && (
+        <p role="alert" className="mx-4 mb-2 text-[11.5px] text-red-500 font-semibold flex items-center gap-1.5">
+          <AlertTriangle size={12} className="shrink-0" /> {sendError}
+        </p>
+      )}
       <div className="px-4 pb-4 flex items-center gap-2">
         <button onClick={() => setShowPix(true)} className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
           <Wallet size={18} />

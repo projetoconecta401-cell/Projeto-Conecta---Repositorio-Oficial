@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { getChatKey } from "./identidade.js";
 
 /*
  * Cliente Supabase do navegador.
@@ -9,7 +10,13 @@ import { createBrowserClient } from "@supabase/ssr";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase = url && publishableKey ? createBrowserClient(url, publishableKey) : null;
+export const supabase =
+  url && publishableKey
+    ? createBrowserClient(url, publishableKey, {
+        // Chave anônima das conversas deste navegador (veja lib/identidade.js).
+        global: { headers: { "x-chat-key": getChatKey() } },
+      })
+    : null;
 
 if (!supabase) {
   console.warn(

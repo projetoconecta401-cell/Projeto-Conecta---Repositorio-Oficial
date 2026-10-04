@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { Toast } from "./components/ui.jsx";
-import { INITIAL_JOBS, SOCIAL_MOCK } from "./data/mock.js";
+import { INITIAL_JOBS, PROFESSIONALS, SOCIAL_MOCK } from "./data/mock.js";
+import { conversaDireta, listarConversasDiretas, mesclarMensagens, novaMensagem, salvarMensagem } from "./lib/mensagens.js";
 import { supabase } from "./lib/supabase.js";
 import { getAutorId, listarVagas, publicarVaga, validarFormulario, vagaParaJob } from "./lib/vagas.js";
 import { AccountScreen } from "./screens/account/AccountScreen.jsx";
@@ -130,6 +131,36 @@ function App() {
       .catch((err) => {
         if (!cancelled) pushToast({ title: "Vagas indisponíveis", body: err.message });
       });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Chat direto: recupera as conversas salvas deste navegador (inclusive as iniciadas em outra visita).
+  useEffect(() => {
+    if (!supabase) return;
+    let cancelled = false;
+    listarConversasDiretas()
+      .then((porConversa) => {
+        if (cancelled) return;
+        setConversations((cs) => {
+          let next = cs.map((c) => (porConversa[c.id] ? { ...c, messages: mesclarMensagens(c.messages, porConversa[c.id]) } : c));
+          for (const [id, msgs] of Object.entries(porConversa)) {
+            if (next.some((c) => c.id === id)) continue;
+            const prof = PROFESSIONALS.find((p) => `prof-${p.id}` === id);
+            if (!prof) continue;
+            next = [{ id, professionalId: prof.id, name: prof.name, avatar: prof.avatar, unread: 0, messages: msgs }, ...next];
+          }
+          return next.map((c) => {
+            const salvas = porConversa[c.id];
+            if (!salvas?.length) return c;
+            const ultima = salvas[salvas.length - 1];
+            const ultimaData = new Date(ultima.createdAt);
+            return !c.lastTime || ultimaData > c.lastTime ? { ...c, lastMessage: ultima.text, lastTime: ultimaData } : c;
+          });
+        });
+      })
+      .catch((err) => !cancelled && pushToast({ title: "Conversas indisponíveis", body: err.message }));
     return () => {
       cancelled = true;
     };
@@ -285,9 +316,15 @@ function App() {
   const handleSendConversationMessage = (conversationId, content) => {
     const isAudio = typeof content === "object" && content !== null;
     const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // Texto: id estável (mesmo na tela e no banco) e salvo no Supabase. Áudio: só na tela.
     const messagePart = isAudio
       ? { id: msgId, from: "me", type: "audio", audioUrl: content.audioUrl, duration: content.duration }
-      : { id: msgId, from: "me", text: content };
+      : novaMensagem(content);
+    if (!isAudio) {
+      salvarMensagem(conversaDireta(conversationId), messagePart).catch((err) =>
+        pushToast({ title: "Mensagem não salva", body: err.message })
+      );
+    }
     const lastMessagePreview = isAudio ? "🎤 Mensagem de voz" : content;
     setConversations((cs) =>
       cs.map((c) =>
