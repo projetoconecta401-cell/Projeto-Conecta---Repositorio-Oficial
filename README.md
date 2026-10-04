@@ -26,6 +26,11 @@ npm run dev
 
 Depois abra http://localhost:5173/ (landing) ou http://localhost:5173/app/ (app).
 
+> **Windows / PowerShell:** se aparecer o erro *"npm.ps1 não pode ser carregado porque a
+> execução de scripts foi desabilitada"*, use `npm.cmd` no lugar de `npm`
+> (`npm.cmd install`, `npm.cmd run dev`, `npm.cmd run build`). Para voltar a usar só `npm`,
+> rode uma vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` e abra um terminal novo.
+
 ---
 
 ## Primeiros passos (do zero)
