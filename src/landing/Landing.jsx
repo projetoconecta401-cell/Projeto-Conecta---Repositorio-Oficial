@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Briefcase, CheckCircle2, MapPin, Menu, Star, X } from "lucide-react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { APP_URL, AUDIENCES, CATEGORIES, FOOTER_NOTE, HERO, STEPS, TRUST } from "./content.js";
 
 /* Revela o conteúdo ao entrar na tela (fade + leve subida).
@@ -383,6 +384,7 @@ export default function Landing() {
           <p className="mt-1">© {new Date().getFullYear()} Conexão Free</p>
         </div>
       </footer>
+      <SpeedInsights />
     </div>
   );
 }
