@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Landing: página clara, rolagem suave entre as seções (#como-funciona etc.). */
+html {
+  scroll-behavior: smooth;
+  background: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+body {
+  margin: 0;
+  background: #ffffff;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
