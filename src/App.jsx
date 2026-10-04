@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { Toast } from "./components/ui.jsx";
 import { INITIAL_JOBS, PROFESSIONALS, SOCIAL_MOCK } from "./data/mock.js";
@@ -522,6 +523,7 @@ function App() {
       <Toast toast={toast} />
       <div className="flex-1 overflow-y-auto no-scrollbar">{content}</div>
       {showNav && <BottomNav active={screen} setScreen={setScreen} mode={mode} unreadConversations={unreadConversations} />}
+      <SpeedInsights />
     </div>
   );
 }
