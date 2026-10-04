@@ -150,7 +150,7 @@ As vagas de exemplo (mock) continuam aparecendo abaixo das vagas do banco.
 2. **Tabela:** no Dashboard do Supabase, abra **SQL Editor**, cole o conteúdo de
    `supabase/migrations/20261003120000_cria_tabela_vagas.sql` e clique em **Run**.
 3. **Vercel:** em **Settings → Environment Variables**, cadastre
-   `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e faça um novo deploy.
+   `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` e faça um novo deploy.
 
 Código: `src/lib/supabase.js` (cliente) e `src/lib/vagas.js` (ler, validar e publicar).
 Sem as variáveis, o app funciona só com os dados de exemplo.

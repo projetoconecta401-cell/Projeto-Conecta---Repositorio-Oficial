@@ -35,9 +35,6 @@ const appTrailingSlash = () => {
 export default defineConfig({
   plugins: [react(), appTrailingSlash()],
   base: "./",
-  // Variáveis expostas ao navegador: VITE_* (padrão do Vite) e NEXT_PUBLIC_*
-  // (nomes usados pelo Supabase). Nunca coloque chaves secretas com esses prefixos.
-  envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   // Porta padrão 5173 (dev) / 4173 (preview); a variável PORT, se definida, tem prioridade.
   server: { port: Number(process.env.PORT) || 5173 },
   preview: { port: Number(process.env.PORT) || 4173 },
