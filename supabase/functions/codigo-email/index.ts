@@ -17,17 +17,13 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VALIDADE_MIN = 10;
 const MAX_TENTATIVAS = 5;
 
-const SMTP_USER = Deno.env.get("SMTP_USERNAME") ?? "";
-const SMTP_PASS = Deno.env.get("SMTP_PASSWORD") ?? "";
-
-const transport = SMTP_USER && SMTP_PASS
-  ? nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    })
-  : null;
+// Lido a cada requisição (secrets salvos depois do deploy passam a valer na hora).
+// A senha de app do Google vem em blocos com espaços ("abcd efgh ..."): removidos aqui.
+function smtpConfig() {
+  const user = (Deno.env.get("SMTP_USERNAME") ?? Deno.env.get("SMTP_USER") ?? "").trim();
+  const pass = (Deno.env.get("SMTP_PASSWORD") ?? Deno.env.get("SMTP_PASS") ?? "").replace(/\s+/g, "");
+  return user && pass ? { user, pass } : null;
+}
 
 const resposta = (corpo: Record<string, unknown>, status = 200) => Response.json(corpo, { status });
 const erro = (mensagem: string, status = 400) => resposta({ erro: mensagem }, status);
@@ -70,10 +66,17 @@ async function conferir(admin: Admin, email: string, finalidade: string, codigo:
 }
 
 async function enviarEmail(para: string, codigo: string, finalidade: string) {
+  const smtp = smtpConfig()!;
+  const transport = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: smtp.user, pass: smtp.pass },
+  });
   const titulo = finalidade === "senha" ? "Recuperação de senha" : "Confirmação de e-mail";
   const motivo = finalidade === "senha" ? "redefinir sua senha" : "confirmar seu e-mail e concluir o cadastro";
-  await transport!.sendMail({
-    from: `Conexão Free <${SMTP_USER}>`,
+  await transport.sendMail({
+    from: `Conexão Free <${smtp.user}>`,
     to: para,
     subject: `Seu código Conexão Free: ${codigo}`,
     text:
@@ -107,7 +110,7 @@ export default {
     // ---- ENVIAR ----------------------------------------------------------------
     if (acao === "enviar") {
       const finalidade = body.finalidade === "senha" ? "senha" : "cadastro";
-      if (!transport) return erro("O envio de e-mails ainda não foi configurado.", 503);
+      if (!smtpConfig()) return erro("O envio de e-mails ainda não foi configurado.", 503);
 
       const umMinuto = new Date(Date.now() - 60_000).toISOString();
       const umaHora = new Date(Date.now() - 3_600_000).toISOString();
