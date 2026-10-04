@@ -16,6 +16,16 @@ O site tem duas páginas:
 > **Protótipo.** Todos os dados do app são mockados e vivem só em memória: recarregar a
 > página volta ao estado inicial. Veja [O que é simulado](#o-que-é-simulado-e-exigiria-backend).
 
+## Para rodar e editar:
+
+```bash
+cd "C:\Users\Win10\Desktop\projeto conecta"
+npm install
+npm run dev
+```
+
+Depois abra http://localhost:5173/ (landing) ou http://localhost:5173/app/ (app).
+
 ---
 
 ## Primeiros passos (do zero)
