@@ -192,6 +192,33 @@ const INITIAL_JOBS = [
     distanceKm: 7.8,
     contractorPhone: "(21) 98766-5544",
   },
+  {
+    // Vaga publicada por "Você" (modo Contratar) com candidata aguardando aceite.
+    // Permite percorrer pela interface o fluxo do contratante:
+    // aceitar candidato → "Em Atendimento" → chat da vaga → acompanhamento.
+    id: 8,
+    title: "Recepcionista para evento de inauguração",
+    category: "Eventos",
+    value: 200,
+    date: "12/09 · 17h às 22h",
+    dateISO: "2026-09-12",
+    period: "Noite",
+    neighborhood: "Nova Brasília",
+    address: "Av. Brasil, 980",
+    city: "Ji-Paraná",
+    state: "RO",
+    lat: -10.8702,
+    lng: -61.9547,
+    verified: true,
+    status: "Em Negociação",
+    contractor: "Você",
+    candidate: "Fernanda Lima",
+    urgent: false,
+    experience: "Com experiência mínima",
+    candidatesCount: 1,
+    distanceKm: 2.6,
+    contractorPhone: null,
+  },
 ];
 
 const PERIODS = ["Manhã", "Tarde", "Noite"];
@@ -2598,13 +2625,18 @@ function JobDetail({ job, onBack, onApply, onAccept, onReopen, onGoChat, onCheck
 
         <div className="p-3.5 rounded-xl bg-white border border-slate-100">
           <p className="text-[11px] text-slate-400 mb-1.5">Localização</p>
-          {job.status === "Em Atendimento" || (job.status === "Em Negociação" && isMine) ? (
+          {/* RN: endereço exato só para o candidato aprovado (vaga "Em Atendimento").
+              Em análise ("Em Negociação"), mesmo quem se candidatou vê só o bairro. */}
+          {job.status === "Em Atendimento" ? (
             <p className="text-[13.5px] font-semibold text-slate-700 flex items-center gap-1.5">
               <MapPin size={14} className="text-emerald-500" /> {job.address} — {job.neighborhood}
             </p>
           ) : (
             <div className="relative">
-              <p className="text-[13.5px] font-semibold text-slate-400 blur-[3px] select-none">{job.address}</p>
+              {/* Texto fictício borrado: o endereço real não vai para o HTML (não dá para
+                  copiar, inspecionar nem ler por leitor de tela). Em produção, a API
+                  nem deveria enviar o endereço antes da aprovação. */}
+              <p aria-hidden="true" className="text-[13.5px] font-semibold text-slate-400 blur-[3px] select-none">Rua Xxxxxxxx Xxxxx, 000</p>
               <p className="text-[12px] text-slate-500 mt-1">Bairro: <span className="font-semibold text-slate-700">{job.neighborhood}</span></p>
               <p className="text-[10.5px] text-slate-400 mt-1 italic">Endereço exato liberado após aprovação da candidatura</p>
             </div>
@@ -3391,7 +3423,7 @@ function ChatScreen({ job, onBack, onComplete, onCancel }) {
           <div className="flex justify-end">
             <div className="max-w-[80%] bg-emerald-50 border border-emerald-200 rounded-2xl rounded-br-sm px-4 py-3">
               <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1.5"><CreditCard size={13} /> Chave PIX compartilhada</p>
-              <p className="text-[13px] font-mono text-emerald-800 mt-1">voce.conectagig@pix.com.br</p>
+              <p className="text-[13px] font-mono text-emerald-800 mt-1">voce.conexaofree@pix.com.br</p>
             </div>
           </div>
         )}
