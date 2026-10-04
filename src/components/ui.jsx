@@ -72,8 +72,13 @@ export const VerifiableField = ({
     {codeSent && !verified && (
       <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
         <p className="text-[11.5px] text-slate-500 mb-2 leading-snug">
-          {sentLabel} Código (simulação de protótipo, sem envio real):{" "}
-          <span className="font-bold text-slate-700 tracking-wider">{generatedCode}</span>
+          {sentLabel}
+          {generatedCode && (
+            <>
+              {" "}Código (simulação de protótipo, sem envio real):{" "}
+              <span className="font-bold text-slate-700 tracking-wider">{generatedCode}</span>
+            </>
+          )}
         </p>
         <div className="flex gap-2">
           <input

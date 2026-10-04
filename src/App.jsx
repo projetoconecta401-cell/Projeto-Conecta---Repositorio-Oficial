@@ -375,6 +375,7 @@ function App({ session = null }) {
       telefone: signupData.phone,
       nascimento: signupData.birthDate,
       perfil: mode,
+      codigo: signupData.emailCode,
     });
   };
 

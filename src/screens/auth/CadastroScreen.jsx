@@ -3,6 +3,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Screen, TopBar, Field, VerifiableField, PrimaryButton } from "../../components/ui.jsx";
+import { authDisponivel, enviarCodigo, verificarCodigo } from "../../lib/auth.js";
 
 /* ------------------------------------------------------------------ */
 /*  MODULE 1 — AUTH / ONBOARDING / SECURITY / TERMS / ACCOUNT          */
@@ -20,7 +21,10 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const [emailCode, setEmailCode] = useState("");
   const [generatedEmailCode, setGeneratedEmailCode] = useState("");
-  const [emailVerified, setEmailVerified] = useState(!!socialProvider);
+  // Com contas reais, o e-mail sempre é confirmado por código (inclusive no caminho Google/Facebook).
+  const emailReal = authDisponivel();
+  const [emailVerified, setEmailVerified] = useState(!!socialProvider && !emailReal);
+  const [emailBusy, setEmailBusy] = useState(false);
   const [emailCodeError, setEmailCodeError] = useState("");
 
   const [phone, setPhone] = useState("");
@@ -35,20 +39,50 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
 
   const generateCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
-  const handleSendEmailCode = () => {
-    if (!emailFormatValid) return;
-    setGeneratedEmailCode(generateCode());
-    setEmailCodeSent(true);
-    setEmailCode("");
+  // Supabase configurado: código real enviado ao e-mail (Edge Function codigo-email).
+  // Sem Supabase: simulação de protótipo (código exibido na tela).
+  const handleSendEmailCode = async () => {
+    if (!emailFormatValid || emailBusy) return;
     setEmailCodeError("");
+    setEmailCode("");
+    if (!emailReal) {
+      setGeneratedEmailCode(generateCode());
+      setEmailCodeSent(true);
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      await enviarCodigo(email, "cadastro");
+      setGeneratedEmailCode("");
+      setEmailCodeSent(true);
+    } catch (err) {
+      setEmailCodeSent(false);
+      setEmailCodeError(err.message);
+    } finally {
+      setEmailBusy(false);
+    }
   };
 
-  const handleConfirmEmailCode = () => {
-    if (emailCode === generatedEmailCode) {
+  const handleConfirmEmailCode = async () => {
+    if (!emailReal) {
+      if (emailCode === generatedEmailCode) {
+        setEmailVerified(true);
+        setEmailCodeError("");
+      } else {
+        setEmailCodeError("Código incorreto. Confira e tente novamente.");
+      }
+      return;
+    }
+    if (emailBusy) return;
+    setEmailBusy(true);
+    try {
+      await verificarCodigo(email, "cadastro", emailCode);
       setEmailVerified(true);
       setEmailCodeError("");
-    } else {
-      setEmailCodeError("Código incorreto. Confira e tente novamente.");
+    } catch (err) {
+      setEmailCodeError(err.message);
+    } finally {
+      setEmailBusy(false);
     }
   };
 
@@ -144,10 +178,19 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
           onCodeChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           onConfirmCode={handleConfirmEmailCode}
           generatedCode={generatedEmailCode}
-          verifyLabel="Verificar"
-          sentLabel="Enviamos um código de confirmação para o seu e-mail."
+          verifyLabel={emailBusy ? "Enviando…" : emailCodeSent ? "Reenviar" : "Verificar"}
+          sentLabel={
+            emailReal
+              ? `Enviamos um código de 6 dígitos para ${email}. Confira também a caixa de spam.`
+              : "Enviamos um código de confirmação para o seu e-mail."
+          }
           codeError={emailCodeError}
         />
+        {!emailCodeSent && emailCodeError && (
+          <p role="alert" className="-mt-1 text-[11.5px] text-red-500 font-semibold flex items-center gap-1">
+            <AlertTriangle size={12} /> {emailCodeError}
+          </p>
+        )}
 
         <div className="relative">
           <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -223,7 +266,9 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
         <PrimaryButton
           className="mt-2"
           disabled={!canContinue}
-          onClick={() => onNext({ name: name.trim(), email: email.trim(), password, phone: phone.trim(), birthDate })}
+          onClick={() =>
+            onNext({ name: name.trim(), email: email.trim(), password, phone: phone.trim(), birthDate, emailCode })
+          }
         >
           Continuar
         </PrimaryButton>

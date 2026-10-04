@@ -2,8 +2,9 @@ import { supabase } from "./supabase.js";
 
 /*
  * Contas reais com Supabase Auth (e-mail e senha).
- * - Cadastro: Edge Function "cadastrar" (supabase/functions/cadastrar) cria a conta já
- *   confirmada — o envio de e-mails padrão do Supabase não entrega para usuários comuns.
+ * - Código por e-mail: Edge Function "codigo-email" envia o código de 6 dígitos pelo
+ *   Gmail do projeto (cadastro e recuperação de senha) e confere o código.
+ * - Cadastro: Edge Function "cadastrar" cria a conta (exige o código do e-mail).
  * - Login/sair: SDK do Supabase (sessão guardada no navegador, renovada sozinha).
  * - Excluir conta: Edge Function "excluir-conta" (apaga vagas e mensagens junto).
  * Google/Facebook reais exigem chaves OAuth configuradas no painel do Supabase; até lá
@@ -30,7 +31,31 @@ export async function entrar(email, senha) {
   if (error) throw traduzirErro(error);
 }
 
-/* dados: { nome, email, senha, telefone, nascimento, perfil } */
+/* Envia o código de 6 dígitos. finalidade: "cadastro" | "senha". */
+export async function enviarCodigo(email, finalidade) {
+  const { error } = await supabase.functions.invoke("codigo-email", {
+    body: { acao: "enviar", email: email.trim().toLowerCase(), finalidade },
+  });
+  if (error) throw await erroDaFuncao(error, "Não foi possível enviar o código agora.");
+}
+
+/* Confere o código (sem consumir). */
+export async function verificarCodigo(email, finalidade, codigo) {
+  const { error } = await supabase.functions.invoke("codigo-email", {
+    body: { acao: "verificar", email: email.trim().toLowerCase(), finalidade, codigo },
+  });
+  if (error) throw await erroDaFuncao(error, "Não foi possível conferir o código agora.");
+}
+
+/* Recuperação de senha: troca a senha com o código recebido por e-mail. */
+export async function redefinirSenha(email, codigo, senha) {
+  const { error } = await supabase.functions.invoke("codigo-email", {
+    body: { acao: "redefinir", email: email.trim().toLowerCase(), codigo, senha },
+  });
+  if (error) throw await erroDaFuncao(error, "Não foi possível alterar a senha agora.");
+}
+
+/* dados: { nome, email, senha, telefone, nascimento, perfil, codigo } */
 export async function cadastrar(dados) {
   const { error } = await supabase.functions.invoke("cadastrar", { body: dados });
   if (error) throw await erroDaFuncao(error, "Não foi possível criar a conta agora.");
