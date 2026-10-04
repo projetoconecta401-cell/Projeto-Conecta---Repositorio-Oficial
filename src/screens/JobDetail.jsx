@@ -50,6 +50,13 @@ export function JobDetail({ job, onBack, onApply, onAccept, onReopen, onGoChat, 
           </div>
         </div>
 
+        {job.details && (
+          <div className="p-3.5 rounded-xl bg-white border border-slate-100">
+            <p className="text-[11px] text-slate-400 mb-1.5">Detalhes do serviço</p>
+            <p className="text-[13px] text-slate-700 leading-relaxed whitespace-pre-line break-words">{job.details}</p>
+          </div>
+        )}
+
         <div className="p-3.5 rounded-xl bg-white border border-slate-100">
           <p className="text-[11px] text-slate-400 mb-1.5">Localização</p>
           {/* RN: endereço exato só para o candidato aprovado (vaga "Em Atendimento").

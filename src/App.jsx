@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { Toast } from "./components/ui.jsx";
 import { INITIAL_JOBS, SOCIAL_MOCK } from "./data/mock.js";
+import { supabase } from "./lib/supabase.js";
+import { getAutorId, listarVagas, publicarVaga, validarFormulario, vagaParaJob } from "./lib/vagas.js";
 import { AccountScreen } from "./screens/account/AccountScreen.jsx";
 import { EditProfileScreen } from "./screens/account/EditProfileScreen.jsx";
 import { MyApplicationsScreen } from "./screens/account/MyApplicationsScreen.jsx";
@@ -105,6 +107,34 @@ function App() {
 
   const updateJob = (id, patch) => setJobs((js) => js.map((j) => (j.id === id ? { ...j, ...patch } : j)));
 
+  // Campos de controle do ciclo da diária (em memória) para vagas vindas do banco.
+  const withAppFields = (job) => ({
+    ...job,
+    applicationStatus: deriveApplicationStatus(job.status),
+    checkInAt: null,
+    checkOutAt: null,
+    cancelledBy: null,
+    companyRating: 4.8,
+    companyRatingCount: 24,
+  });
+
+  // Mural dinâmico: carrega as vagas publicadas no Supabase (as de exemplo continuam abaixo).
+  useEffect(() => {
+    if (!supabase) return;
+    let cancelled = false;
+    listarVagas()
+      .then((vagas) => {
+        if (cancelled) return;
+        setJobs((js) => [...vagas.filter((v) => !js.some((j) => j.id === v.id)).map(withAppFields), ...js]);
+      })
+      .catch((err) => {
+        if (!cancelled) pushToast({ title: "Vagas indisponíveis", body: err.message });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (screen === "notifs") {
       setNotifications((n) => (n.some((item) => !item.read) ? n.map((item) => ({ ...item, read: true })) : n));
@@ -185,30 +215,18 @@ function App() {
     setScreen("postJobSummary");
   };
 
-  const handlePublish = (formData) => {
-    const dateISO = formData.dateISO || "";
-    const dateLabel = dateISO
-      ? new Date(dateISO + "T00:00:00").toLocaleDateString("pt-BR")
-      : "A combinar";
-    const newJob = {
-      id: Date.now(),
-      title: formData.title || "Nova vaga publicada",
-      category: formData.category || "Serviços Gerais",
-      value: formData.value || "0",
-      date: formData.timeLabel ? `${dateLabel} · ${formData.timeLabel}` : dateLabel,
-      dateISO: dateISO || null,
-      neighborhood: formData.neighborhood || "Centro",
-      address: `${formData.neighborhood || "Centro"} (endereço a confirmar)`,
-      city: formData.city || "Ji-Paraná",
-      state: formData.state || "RO",
-      verified: true,
-      status: "Disponível",
-      contractor: "Você",
-      contractorPhone: formData.phone || null,
-      candidate: null,
-      urgent: false,
-    };
-    setJobs((js) => [newJob, ...js]);
+  // Publica no Supabase (todos passam a ver a vaga). Sem Supabase configurado, cria só em memória.
+  // Lança erro com mensagem amigável: o formulário mostra o erro e continua aberto.
+  const handlePublish = async (formData) => {
+    let newJob;
+    if (supabase) {
+      newJob = await publicarVaga(formData);
+    } else {
+      const { dados, erro } = validarFormulario(formData);
+      if (erro) throw new Error(erro);
+      newJob = vagaParaJob({ ...dados, id: Date.now(), autor_id: getAutorId(), status: "Disponível" });
+    }
+    setJobs((js) => [withAppFields(newJob), ...js]);
     pushToast({ title: "Vaga publicada!", body: "Prestadores próximos serão notificados." });
   };
 

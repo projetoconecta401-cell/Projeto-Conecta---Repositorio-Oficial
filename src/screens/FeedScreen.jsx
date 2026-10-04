@@ -328,9 +328,9 @@ export function FeedScreen({ mode, jobs, onOpenJob, onPublish, onDeleteJob, onOp
       {showPublish && (
         <PublishModal
           onClose={() => setShowPublish(false)}
-          onPublish={(formData) => {
+          onPublish={async (formData) => {
+            await onPublish(formData); // se falhar, o erro aparece no modal e ele continua aberto
             setShowPublish(false);
-            onPublish(formData);
           }}
         />
       )}

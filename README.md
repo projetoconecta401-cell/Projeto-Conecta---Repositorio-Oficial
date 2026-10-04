@@ -138,6 +138,27 @@ modais, toasts e botões flutuantes com `position: absolute`, nunca `fixed`).
 
 ---
 
+## Supabase (vagas dinâmicas)
+
+O formulário **Publicar Vaga** salva no Supabase e o **Mural de Vagas** carrega as vagas
+do banco, visíveis para todos. Não há login: qualquer pessoa pode ver e publicar vagas.
+As vagas de exemplo (mock) continuam aparecendo abaixo das vagas do banco.
+
+1. **Variáveis:** copie `.env.example` para `.env` e preencha com a URL e a chave
+   *publishable* do projeto (Dashboard → Project Settings → API Keys). O `.env` não vai
+   para o GitHub. Nunca use a chave *secret*/*service_role* aqui.
+2. **Tabela:** no Dashboard do Supabase, abra **SQL Editor**, cole o conteúdo de
+   `supabase/migrations/20261003120000_cria_tabela_vagas.sql` e clique em **Run**.
+3. **Vercel:** em **Settings → Environment Variables**, cadastre
+   `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e faça um novo deploy.
+
+Código: `src/lib/supabase.js` (cliente) e `src/lib/vagas.js` (ler, validar e publicar).
+Sem as variáveis, o app funciona só com os dados de exemplo.
+
+**Segurança (RLS):** leitura e inclusão abertas; **alterar e excluir pela API é bloqueado**.
+Por isso, excluir uma vaga, candidatar-se, aceitar, check-in etc. continuam só em memória.
+Com autenticação, isso passa a ser salvo com regras por dono da vaga.
+
 ## Como publicar
 
 O build é um site estático: basta publicar a pasta `dist/`.

@@ -1,4 +1,4 @@
-import { X, ArrowLeft, Phone } from "lucide-react";
+import { X, ArrowLeft, Phone, Building2, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { CATEGORIES, STATES } from "../../data/mock.js";
 import { Field, OrangeButton } from "../ui.jsx";
@@ -14,9 +14,27 @@ export function PublishModal({ onClose, onPublish }) {
     city: "",
     state: "RO",
     phone: "",
+    contractor: "",
+    details: "",
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const canSubmit = form.title && form.value && form.dateISO && form.neighborhood && form.city;
+  const canSubmit = form.title && form.value && form.dateISO && form.neighborhood && form.city && !saving;
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+  // onPublish pode ser assíncrono (salva no Supabase). O modal só fecha quando der certo.
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setError("");
+    setSaving(true);
+    try {
+      await onPublish(form);
+    } catch (err) {
+      setError(err?.message || "Não foi possível publicar a vaga.");
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="absolute inset-0 z-50 bg-black/40 flex items-end">
@@ -46,11 +64,12 @@ export function PublishModal({ onClose, onPublish }) {
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Field placeholder="Valor sugerido (R$)" value={form.value} onChange={set("value")} />
+            <Field placeholder="Valor sugerido (R$)" inputMode="decimal" value={form.value} onChange={set("value")} />
             <div>
               <p className="text-[11.5px] font-semibold text-slate-500 mb-1.5">Data do serviço</p>
               <input
                 type="date"
+                min={today}
                 value={form.dateISO}
                 onChange={set("dateISO")}
                 className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
@@ -58,6 +77,8 @@ export function PublishModal({ onClose, onPublish }) {
             </div>
           </div>
           <Field placeholder="Horário (ex: 18h às 23h)" value={form.timeLabel} onChange={set("timeLabel")} />
+
+          <Field icon={Building2} placeholder="Seu nome ou empresa (opcional)" maxLength={80} value={form.contractor} onChange={set("contractor")} />
 
           <Field icon={Phone} type="tel" placeholder="WhatsApp para contato (ex: 69 99999-9999)" value={form.phone} onChange={set("phone")} />
 
@@ -79,14 +100,19 @@ export function PublishModal({ onClose, onPublish }) {
             O endereço exato só é liberado para o candidato aprovado — no mural fica visível apenas o bairro/região.
           </p>
 
-          <textarea rows={3} placeholder="Detalhes do serviço (opcional)" className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+          <textarea rows={3} maxLength={1000} value={form.details} onChange={set("details")} placeholder="Detalhes do serviço (opcional)" className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
         </div>
+        {error && (
+          <p role="alert" className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {error}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2.5 mt-5">
-          <button type="button" onClick={onClose} className="py-3.5 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-[13.5px]">
+          <button type="button" onClick={onClose} disabled={saving} className="py-3.5 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-[13.5px]">
             Cancelar
           </button>
-          <OrangeButton disabled={!canSubmit} onClick={() => onPublish(form)}>
-            Confirmar e Publicar
+          <OrangeButton disabled={!canSubmit} onClick={handleSubmit}>
+            {saving ? "Publicando…" : "Confirmar e Publicar"}
           </OrangeButton>
         </div>
       </div>
