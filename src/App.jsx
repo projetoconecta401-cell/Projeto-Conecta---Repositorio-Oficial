@@ -4,7 +4,8 @@ import { Toast } from "./components/ui.jsx";
 import { INITIAL_JOBS, PROFESSIONALS, SOCIAL_MOCK } from "./data/mock.js";
 import { conversaDireta, listarConversasDiretas, mesclarMensagens, novaMensagem, salvarMensagem } from "./lib/mensagens.js";
 import { supabase } from "./lib/supabase.js";
-import { getAutorId, listarVagas, publicarVaga, validarFormulario, vagaParaJob } from "./lib/vagas.js";
+import { excluirVaga, listarVagas, publicarVaga, validarFormulario, vagaParaJob } from "./lib/vagas.js";
+import { cadastrar, entrar, excluirConta, sair } from "./lib/auth.js";
 import { AccountScreen } from "./screens/account/AccountScreen.jsx";
 import { EditProfileScreen } from "./screens/account/EditProfileScreen.jsx";
 import { MyApplicationsScreen } from "./screens/account/MyApplicationsScreen.jsx";
@@ -35,12 +36,18 @@ import { RatingScreen } from "./screens/RatingScreen.jsx";
 /*  APP ROOT                                                           */
 /* ------------------------------------------------------------------ */
 
-function App() {
-  const [authStep, setAuthStep] = useState("login");
+/* session: sessão do Supabase Auth (null = ninguém logado). O AuthGate recria o App
+   a cada troca de conta, então todo o estado abaixo pertence a uma única conta. */
+function App({ session = null }) {
+  const userId = session?.user?.id ?? null;
+  const contaMeta = session?.user?.user_metadata ?? {};
+  const [authStep, setAuthStep] = useState(session ? "done" : "login");
+  // Dados digitados no cadastro; a conta só é criada ao aceitar os Termos (último passo).
+  const [signupData, setSignupData] = useState(null);
   const [socialProvider, setSocialProvider] = useState(null);
   const [screen, setScreen] = useState("feed");
   const [jobDetailReturnScreen, setJobDetailReturnScreen] = useState("feed");
-  const [mode, setMode] = useState("trabalhar");
+  const [mode, setMode] = useState(contaMeta.perfil === "contratar" ? "contratar" : "trabalhar");
   const deriveApplicationStatus = (status) => {
     if (status === "Em Negociação") return "Em análise";
     if (status === "Em Atendimento") return "Candidatura oficializada";
@@ -65,9 +72,9 @@ function App() {
   const [toast, setToast] = useState(null);
   const [savedJobIds, setSavedJobIds] = useState([]);
   const [profile, setProfile] = useState({
-    name: "Você",
-    email: "",
-    phone: "",
+    name: contaMeta.nome || "Você",
+    email: session?.user?.email || "",
+    phone: contaMeta.telefone || "",
     city: "Ji-Paraná, RO",
     bio: "",
     hasPhoto: false,
@@ -123,7 +130,7 @@ function App() {
   useEffect(() => {
     if (!supabase) return;
     let cancelled = false;
-    listarVagas()
+    listarVagas(userId)
       .then((vagas) => {
         if (cancelled) return;
         setJobs((js) => [...vagas.filter((v) => !js.some((j) => j.id === v.id)).map(withAppFields), ...js]);
@@ -136,9 +143,9 @@ function App() {
     };
   }, []);
 
-  // Chat direto: recupera as conversas salvas deste navegador (inclusive as iniciadas em outra visita).
+  // Chat direto: recupera as conversas salvas da conta (inclusive as iniciadas em outro aparelho).
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !userId) return;
     let cancelled = false;
     listarConversasDiretas()
       .then((porConversa) => {
@@ -251,11 +258,12 @@ function App() {
   const handlePublish = async (formData) => {
     let newJob;
     if (supabase) {
-      newJob = await publicarVaga(formData);
+      if (!userId) throw new Error("Entre na sua conta para publicar vagas.");
+      newJob = await publicarVaga(formData, userId);
     } else {
       const { dados, erro } = validarFormulario(formData);
       if (erro) throw new Error(erro);
-      newJob = vagaParaJob({ ...dados, id: Date.now(), autor_id: getAutorId(), status: "Disponível" });
+      newJob = vagaParaJob({ ...dados, id: Date.now(), usuario_id: "local", status: "Disponível" }, "local");
     }
     setJobs((js) => [withAppFields(newJob), ...js]);
     pushToast({ title: "Vaga publicada!", body: "Prestadores próximos serão notificados." });
@@ -265,7 +273,7 @@ function App() {
     "Em análise", "Candidatura oficializada", "Diária agendada", "Em andamento", "Diária concluída",
   ];
 
-  const handleDeleteJob = (job) => {
+  const handleDeleteJob = async (job) => {
     const id = typeof job === "object" ? job.id : job;
     const target = typeof job === "object" ? job : jobs.find((j) => j.id === id);
     const hasActiveCandidate =
@@ -276,6 +284,15 @@ function App() {
         body: "Esta vaga tem uma candidatura em andamento. Cancele a negociação com o profissional antes de excluir.",
       });
       return;
+    }
+    // Vagas do banco: exclui de verdade (regra no banco: só o dono). Exemplos: só na tela.
+    if (target?.source === "supabase") {
+      try {
+        await excluirVaga(id);
+      } catch (err) {
+        pushToast({ title: "Não foi possível excluir", body: err.message });
+        return;
+      }
     }
     setJobs((js) => js.filter((j) => j.id !== id));
     pushToast({ title: "Vaga excluída", body: "A vaga foi removida do seu painel e do mural." });
@@ -335,12 +352,56 @@ function App() {
     );
   };
 
+  /* ---- CONTA (Supabase Auth; sem Supabase configurado, tudo simulado) ---- */
+  const handleLogin = async (email, password) => {
+    if (!supabase) {
+      setAuthStep("done");
+      return;
+    }
+    await entrar(email, password); // sucesso: o AuthGate recria o App já logado
+  };
+
+  // Último passo do cadastro: cria a conta e entra (o AuthGate abre o app logado).
+  const handleFinishSignup = async () => {
+    if (!supabase) {
+      setAuthStep("done");
+      return;
+    }
+    if (!signupData) throw new Error("Dados do cadastro não encontrados. Volte e preencha o cadastro.");
+    await cadastrar({
+      nome: signupData.name,
+      email: signupData.email,
+      senha: signupData.password,
+      telefone: signupData.phone,
+      nascimento: signupData.birthDate,
+      perfil: mode,
+    });
+  };
+
+  const handleLogout = () => {
+    setScreen("feed");
+    if (supabase) sair();
+    else setAuthStep("login");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!supabase) {
+      setAuthStep("login");
+      return;
+    }
+    try {
+      await excluirConta(); // apaga a conta, as vagas e as mensagens dela
+    } catch (err) {
+      pushToast({ title: "Conta não excluída", body: err.message });
+    }
+  };
+
   /* ---- AUTH FLOW ---- */
   if (authStep !== "done") {
     const steps = {
       login: (
         <LoginScreen
-          onLogin={() => setAuthStep("done")}
+          onLogin={handleLogin}
           goCadastro={() => setAuthStep("cadastro")}
           goForgot={() => setAuthStep("forgotPassword")}
           goSocial={(provider) => {
@@ -356,7 +417,10 @@ function App() {
             setSocialProvider(null);
             setAuthStep("login");
           }}
-          onNext={() => setAuthStep("onboarding")}
+          onNext={(dados) => {
+            setSignupData(dados);
+            setAuthStep("onboarding");
+          }}
           socialProvider={socialProvider}
           socialPrefill={socialProvider ? SOCIAL_MOCK[socialProvider] : null}
         />
@@ -378,7 +442,7 @@ function App() {
           onNext={() => setAuthStep("terms")}
         />
       ),
-      terms: <TermsScreen onBack={() => setAuthStep("resume")} onFinish={() => setAuthStep("done")} />,
+      terms: <TermsScreen onBack={() => setAuthStep("resume")} onFinish={handleFinishSignup} />,
     };
     return (
       <div className="w-full max-w-sm mx-auto h-[820px] max-h-[92vh] bg-slate-50 rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 flex flex-col relative font-sans">
@@ -405,7 +469,7 @@ function App() {
         unreadNotifications={unreadNotifications}
         onOpenNotifications={handleOpenNotifications}
         onViewProfile={() => setScreen("account")}
-        onLogout={() => { setScreen("feed"); setAuthStep("login"); }}
+        onLogout={handleLogout}
         profile={profile}
       />
     );
@@ -438,8 +502,8 @@ function App() {
         mode={mode}
         setMode={setMode}
         onBack={() => setScreen("feed")}
-        onDelete={() => setAuthStep("login")}
-        onLogout={() => { setScreen("feed"); setAuthStep("login"); }}
+        onDelete={handleDeleteAccount}
+        onLogout={handleLogout}
         onOpenHistory={() => setScreen("workHistory")}
         onOpenApplications={() => setScreen("myApplications")}
         onOpenDiarias={() => setScreen("myDiarias")}

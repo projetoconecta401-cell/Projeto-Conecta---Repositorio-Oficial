@@ -138,34 +138,40 @@ modais, toasts e botões flutuantes com `position: absolute`, nunca `fixed`).
 
 ---
 
-## Supabase (vagas e chat)
+## Supabase (contas, vagas e chat)
 
-O formulário **Publicar Vaga** salva no Supabase e o **Mural de Vagas** carrega as vagas
-do banco, visíveis para todos. Não há login: qualquer pessoa pode ver e publicar vagas.
-As vagas de exemplo (mock) continuam aparecendo abaixo das vagas do banco.
+O app usa o Supabase para **contas reais**, **vagas publicadas** e **mensagens do chat**.
+
+| Recurso | Como funciona |
+|---|---|
+| Cadastro | Fluxo completo do app; a conta é criada ao aceitar os Termos, pela Edge Function `cadastrar` (já confirmada, sem e-mail de confirmação). Valida e-mail, senha (6+) e maioridade (18+) também no servidor. |
+| Login / sair | E-mail e senha (Supabase Auth). A sessão fica no navegador e é renovada sozinha. |
+| Excluir conta | Perfil → Excluir conta (digitar EXCLUIR). Edge Function `excluir-conta` apaga a conta, as vagas e as mensagens dela. |
+| Vagas | Todos veem o mural; publicar exige estar logado; só quem publicou exclui. |
+| Chat | Mensagens de texto salvas por **conta**: a mesma conta vê tudo em qualquer aparelho e contas diferentes nunca se misturam. Áudio fica só na tela. |
 
 1. **Variáveis:** copie `.env.example` para `.env` e preencha com a URL e a chave
    *publishable* do projeto (Dashboard → Project Settings → API Keys). O `.env` não vai
    para o GitHub. Nunca use a chave *secret*/*service_role* aqui.
-2. **Tabelas:** no Dashboard do Supabase, abra **SQL Editor** e rode, em ordem, os arquivos de
-   `supabase/migrations/` (já aplicados no projeto `yrnxekmviprbhlviuwvt`).
-3. **Vercel:** em **Settings → Environment Variables**, cadastre
-   `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` e faça um novo deploy.
+2. **Banco:** rode, em ordem, os arquivos de `supabase/migrations/` no SQL Editor
+   (já aplicados no projeto `yrnxekmviprbhlviuwvt`).
+3. **Edge Functions:** `supabase/functions/cadastrar` (verify_jwt = false; valida a chave
+   publishable) e `supabase/functions/excluir-conta` (verify_jwt = true). Já publicadas.
+4. **Vercel:** cadastre `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` em
+   **Settings → Environment Variables** e faça um novo deploy.
 
-Código: `src/lib/supabase.js` (cliente), `src/lib/vagas.js` (ler, validar e publicar vagas)
-e `src/lib/mensagens.js` (chat).
+Código: `src/lib/supabase.js` (cliente), `src/lib/auth.js` (contas), `src/AuthGate.jsx`
+(recria o app a cada troca de conta), `src/lib/vagas.js` e `src/lib/mensagens.js`.
+Sem as variáveis, o app volta ao modo protótipo (login simulado e dados de exemplo).
 
-**Chat salvo:** as mensagens de texto do chat da vaga e do chat direto ficam na tabela
-`mensagens` e voltam ao reabrir o app. Sem login, cada navegador tem uma **chave anônima**
-(`src/lib/identidade.js`, guardada no localStorage) enviada no cabeçalho `x-chat-key`; a regra
-do banco só devolve as mensagens daquela chave, então ninguém lê as conversas dos outros.
-Limpar os dados do site no navegador (ou trocar de aparelho) = começar com o chat vazio.
-Áudios do chat continuam só na tela.
-Sem as variáveis, o app funciona só com os dados de exemplo.
-
-**Segurança (RLS):** leitura e inclusão abertas; **alterar e excluir pela API é bloqueado**.
-Por isso, excluir uma vaga, candidatar-se, aceitar, check-in etc. continuam só em memória.
-Com autenticação, isso passa a ser salvo com regras por dono da vaga.
+**Ainda simulado / limitações:**
+- **Google e Facebook:** os botões levam ao cadastro por e-mail e senha. Login social real
+  exige criar apps OAuth no Google Cloud e no Meta for Developers e configurar no Supabase.
+- **E-mail:** sem serviço de e-mail próprio (SMTP), o Supabase não envia e-mails a usuários
+  comuns. Por isso o código de 6 dígitos do cadastro é simulado e "Esqueci minha senha"
+  mostra só a mensagem genérica.
+- **Sem limite de cadastros:** qualquer pessoa pode criar contas (sem prova de posse do e-mail).
+- Candidatura, aceite, check-in, avaliações, KYC e dados bancários continuam em memória.
 
 ## Como publicar
 
@@ -187,13 +193,13 @@ Não precisa de regra de redirecionamento: a landing é `dist/index.html` e o ap
 
 | Funcionalidade | No protótipo | Em produção |
 |---|---|---|
-| Login, cadastro, recuperação de senha | Validação só na tela | Autenticação real, hash de senha, sessões |
+| Login, cadastro, recuperação de senha | Contas reais no Supabase Auth; recuperação de senha ainda simulada | Envio de e-mail (SMTP) para confirmação e recuperação |
 | Verificação de e-mail (código de 6 dígitos) e celular | Código simulado | Envio de e-mail/SMS |
 | Documento (RG/CNH), selfie ao vivo, KYC | Captura local, nada é enviado | Upload seguro + verificação de identidade (LGPD) |
 | Dados bancários e chave PIX | Só em memória | Armazenamento criptografado / provedor de pagamento |
 | Vagas, candidaturas, avaliações, notificações | Vagas publicadas no Supabase; o resto em memória | Banco de dados + API + push |
 | Endereço da vaga antes do aceite | Escondido na tela | A API nem envia o endereço antes da aprovação |
-| Chat (texto e áudio) | Texto salvo no Supabase por navegador (chave anônima); áudio só na tela | Login, mensagens entre usuários reais em tempo real e armazenamento de áudio |
+| Chat (texto e áudio) | Texto salvo no Supabase por conta; áudio só na tela | Mensagens entre usuários reais em tempo real e armazenamento de áudio |
 | Mapa | Posições estimadas; distância por Haversine | Geocodificação real dos endereços |
 | Nota das empresas | Valor fixo (mock) | Média calculada das avaliações |
 

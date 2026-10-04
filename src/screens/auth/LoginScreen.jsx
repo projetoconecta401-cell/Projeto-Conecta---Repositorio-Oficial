@@ -7,14 +7,24 @@ export function LoginScreen({ onLogin, goCadastro, goForgot, goSocial }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const emailFormatValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const canSubmit = emailFormatValid && password.length > 0;
 
-  const handleSubmit = () => {
+  // onLogin pode ser assíncrono (Supabase Auth): mostra "Entrando…" e o erro, se houver.
+  const handleSubmit = async () => {
     setTouched(true);
-    if (!canSubmit) return;
-    onLogin();
+    if (!canSubmit || loading) return;
+    setLoginError("");
+    setLoading(true);
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setLoginError(err?.message || "Não foi possível entrar agora.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,7 +70,12 @@ export function LoginScreen({ onLogin, goCadastro, goForgot, goSocial }) {
           <div className="text-right">
             <button onClick={goForgot} className="text-[13px] text-emerald-600 font-medium">Esqueci minha senha</button>
           </div>
-          <PrimaryButton onClick={handleSubmit}>Entrar</PrimaryButton>
+          <PrimaryButton onClick={handleSubmit} disabled={loading}>{loading ? "Entrando…" : "Entrar"}</PrimaryButton>
+          {loginError && (
+            <p role="alert" className="text-[12px] text-red-500 font-semibold text-center flex items-center justify-center gap-1">
+              <AlertTriangle size={12} /> {loginError}
+            </p>
+          )}
           {touched && !canSubmit && (
             <p className="text-[11.5px] text-red-500 font-semibold text-center flex items-center justify-center gap-1">
               <AlertTriangle size={12} /> Informe um e-mail válido e sua senha para entrar.

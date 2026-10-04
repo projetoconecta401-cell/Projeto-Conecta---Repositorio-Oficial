@@ -30,7 +30,8 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
 
   const emailFormatValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
-  const passwordsOk = socialProvider ? true : password.length >= 6 && password === confirmPassword;
+  // Senha exigida também no caminho Google/Facebook: sem OAuth configurado, a conta real é por e-mail e senha.
+  const passwordsOk = password.length >= 6 && password === confirmPassword;
 
   const generateCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
@@ -75,7 +76,7 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
   const pendencies = [
     { done: !!name.trim(), label: "Informar o nome completo" },
     { done: emailVerified, label: "Verificar o e-mail" },
-    ...(socialProvider ? [] : [{ done: passwordsOk, label: "Criar e confirmar a senha (mínimo 6 caracteres)" }]),
+    { done: passwordsOk, label: "Criar e confirmar a senha (mínimo 6 caracteres)" },
     { done: !!birthDate && !ageError, label: "Informar uma data de nascimento válida (18+)" },
   ];
   const canContinue = pendencies.every((p) => p.done);
@@ -148,48 +149,44 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
           codeError={emailCodeError}
         />
 
-        {!socialProvider && (
-          <>
-            <div className="relative">
-              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type={show ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Criar senha"
-                className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-white text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
-              />
-              <button type="button" onClick={() => setShow(!show)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                {show ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+        <div className="relative">
+          <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type={show ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Criar senha"
+            className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-white text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+          />
+          <button type="button" onClick={() => setShow(!show)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
 
-            <div>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type={showConfirm ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirme sua senha"
-                  className={`w-full pl-10 pr-10 py-3 rounded-xl border bg-white text-[15px] focus:outline-none focus:ring-2 transition ${
-                    passwordMismatch
-                      ? "border-red-300 focus:ring-red-500/30"
-                      : "border-slate-200 focus:ring-emerald-500/40 focus:border-emerald-500"
-                  }`}
-                />
-                <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {passwordMismatch && (
-                <p className="text-[12px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
-                  <AlertTriangle size={12} /> As senhas não coincidem.
-                </p>
-              )}
-            </div>
-          </>
-        )}
+        <div>
+          <div className="relative">
+            <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirme sua senha"
+              className={`w-full pl-10 pr-10 py-3 rounded-xl border bg-white text-[15px] focus:outline-none focus:ring-2 transition ${
+                passwordMismatch
+                  ? "border-red-300 focus:ring-red-500/30"
+                  : "border-slate-200 focus:ring-emerald-500/40 focus:border-emerald-500"
+              }`}
+            />
+            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+              {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {passwordMismatch && (
+            <p className="text-[12px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
+              <AlertTriangle size={12} /> As senhas não coincidem.
+            </p>
+          )}
+        </div>
 
         <Field
           icon={Phone}
@@ -223,7 +220,13 @@ export function CadastroScreen({ onBack, onNext, socialProvider, socialPrefill }
           )}
         </div>
 
-        <PrimaryButton className="mt-2" disabled={!canContinue} onClick={onNext}>Continuar</PrimaryButton>
+        <PrimaryButton
+          className="mt-2"
+          disabled={!canContinue}
+          onClick={() => onNext({ name: name.trim(), email: email.trim(), password, phone: phone.trim(), birthDate })}
+        >
+          Continuar
+        </PrimaryButton>
 
         {!canContinue && (
           <div className="text-[11.5px] text-slate-400 pt-1">

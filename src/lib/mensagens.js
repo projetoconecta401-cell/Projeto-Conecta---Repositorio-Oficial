@@ -1,10 +1,10 @@
 import { supabase } from "./supabase.js";
-import { getChatKey, novoId } from "./identidade.js";
+import { novoId } from "./identidade.js";
 
 /*
  * Mensagens do chat no Supabase (tabela public.mensagens — veja supabase/migrations/).
- * Cada navegador só lê e grava as próprias mensagens (chave anônima no cabeçalho
- * x-chat-key; regra no banco). Só texto é salvo: áudios continuam apenas na tela.
+ * Cada conta só lê e grava as próprias mensagens (regra no banco: usuario_id = conta
+ * logada), em qualquer aparelho. Só texto é salvo: áudios continuam apenas na tela.
  */
 
 const TABELA = "mensagens";
@@ -37,7 +37,7 @@ export async function listarMensagens(conversa) {
   return data.map(paraMensagem);
 }
 
-/* Todas as conversas diretas deste navegador: { "prof-1": [mensagens], ... }. */
+/* Todas as conversas diretas da conta: { "prof-1": [mensagens], ... }. */
 export async function listarConversasDiretas() {
   if (!supabase) return {};
   const { data, error } = await supabase
@@ -60,8 +60,7 @@ export async function salvarMensagem(conversa, mensagem) {
   if (!supabase) return;
   const { error } = await supabase.from(TABELA).insert({
     id: mensagem.id,
-    chave: getChatKey(),
-    conversa,
+    conversa, // usuario_id é preenchido pelo banco com a conta logada
     remetente: "me",
     texto: mensagem.text,
   });
@@ -79,6 +78,7 @@ function traduzirErro(error) {
   const msg = `${error.code ?? ""} ${error.message ?? ""}`;
   if (/PGRST205|42P01|Could not find the table/i.test(msg))
     return new Error("O chat ainda não está configurado no banco.");
+  if (/42501|permission denied|row-level security/i.test(msg)) return new Error("Entre na sua conta para usar o chat.");
   if (/23514|check constraint/i.test(msg)) return new Error("Mensagem vazia ou longa demais (máx. 2000 caracteres).");
   if (/Failed to fetch|NetworkError/i.test(msg)) return new Error("Sem conexão. A mensagem não foi salva.");
   return new Error("Não foi possível salvar a mensagem.");

@@ -1,13 +1,10 @@
 import { supabase } from "./supabase.js";
-import { getAutorId } from "./identidade.js";
-
-export { getAutorId };
 
 /*
  * Vagas no Supabase (tabela public.vagas — veja supabase/migrations/).
- * Sem login: qualquer pessoa lê e publica. Alterar/excluir vagas pela API não é
- * permitido; mudanças de status (candidatura, aceite, check-in…) continuam só
- * em memória neste protótipo.
+ * Todos leem; publicar exige conta (usuario_id = conta logada); só o dono exclui.
+ * Mudanças de status (candidatura, aceite, check-in…) continuam só em memória
+ * neste protótipo.
  */
 
 const TABELA = "vagas";
@@ -73,10 +70,10 @@ export function validarFormulario(form) {
 }
 
 /* Linha do banco -> objeto de vaga no formato usado pelas telas. */
-export function vagaParaJob(row, autorId = getAutorId()) {
+export function vagaParaJob(row, userId = null) {
   const valor = Number(row.valor);
   const dataLabel = row.data ? new Date(row.data + "T00:00:00").toLocaleDateString("pt-BR") : "A combinar";
-  const minha = row.autor_id && row.autor_id === autorId;
+  const minha = !!userId && row.usuario_id === userId;
   return {
     id: row.id,
     title: row.titulo,
@@ -103,8 +100,8 @@ export function vagaParaJob(row, autorId = getAutorId()) {
   };
 }
 
-/* Lista as vagas mais recentes. */
-export async function listarVagas() {
+/* Lista as vagas mais recentes. userId: conta logada (marca as vagas dela como "Você"). */
+export async function listarVagas(userId = null) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from(TABELA)
@@ -112,23 +109,25 @@ export async function listarVagas() {
     .order("criado_em", { ascending: false })
     .limit(100);
   if (error) throw traduzirErro(error);
-  const autorId = getAutorId();
-  return data.map((row) => vagaParaJob(row, autorId));
+  return data.map((row) => vagaParaJob(row, userId));
 }
 
-/* Publica uma vaga a partir dos dados do formulário. */
-export async function publicarVaga(form) {
+/* Publica uma vaga a partir dos dados do formulário (o banco grava usuario_id = conta logada). */
+export async function publicarVaga(form, userId) {
   if (!supabase) throw new Error("Supabase não configurado. Confira o arquivo .env.");
   const { dados, erro } = validarFormulario(form);
   if (erro) throw new Error(erro);
-  const autorId = getAutorId();
-  const { data, error } = await supabase
-    .from(TABELA)
-    .insert({ ...dados, autor_id: autorId })
-    .select()
-    .single();
+  const { data, error } = await supabase.from(TABELA).insert(dados).select().single();
   if (error) throw traduzirErro(error);
-  return vagaParaJob(data, autorId);
+  return vagaParaJob(data, userId);
+}
+
+/* Exclui uma vaga da própria conta (regra no banco: só o dono). */
+export async function excluirVaga(id) {
+  if (!supabase) return;
+  const { data, error } = await supabase.from(TABELA).delete().eq("id", id).select("id");
+  if (error) throw traduzirErro(error);
+  if (!data?.length) throw new Error("Só quem publicou a vaga pode excluí-la.");
 }
 
 function traduzirErro(error) {
@@ -137,7 +136,7 @@ function traduzirErro(error) {
   if (/PGRST205|42P01|does not exist|Could not find the table/i.test(msg))
     return new Error("A tabela de vagas ainda não foi criada no Supabase.");
   if (/42501|row-level security|permission denied/i.test(msg))
-    return new Error("O banco recusou a vaga. Confira se a data não está no passado.");
+    return new Error("O banco recusou a vaga. Entre na sua conta e confira se a data não está no passado.");
   if (/23514|check constraint/i.test(msg))
     return new Error("Algum campo está fora do formato aceito. Revise os dados da vaga.");
   if (/Failed to fetch|NetworkError|fetch/i.test(msg))

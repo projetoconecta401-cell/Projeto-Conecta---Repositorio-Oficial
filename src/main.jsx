@@ -1,17 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
+import AuthGate from "./AuthGate.jsx";
 import AppErrorBoundary from "./AppErrorBoundary.jsx";
 import "./index.css";
 
 /*
- * Protótipo: todos os dados do Conexão Free vivem só em memória (estado React).
- * Recarregar a página volta ao estado inicial. Em produção, cadastro, login,
- * verificação de e-mail/SMS, KYC (documento e selfie), dados bancários/PIX,
- * vagas, candidaturas, chat e avaliações dependeriam de um backend real.
+ * Contas (login/cadastro), vagas publicadas e mensagens de texto do chat ficam no
+ * Supabase. O restante (verificação de e-mail/SMS, KYC, dados bancários/PIX,
+ * candidaturas, check-in, avaliações) ainda é simulado em memória neste protótipo.
  */
 ReactDOM.createRoot(document.getElementById("root")).render(
   <AppErrorBoundary>
-    <App />
+    <AuthGate />
   </AppErrorBoundary>
 );

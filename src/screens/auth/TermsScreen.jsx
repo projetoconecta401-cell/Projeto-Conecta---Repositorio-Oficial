@@ -1,8 +1,24 @@
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Screen, TopBar, PrimaryButton } from "../../components/ui.jsx";
 
 export function TermsScreen({ onFinish, onBack }) {
   const [accepted, setAccepted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // onFinish cria a conta (Supabase Auth) — pode demorar ou falhar (ex.: e-mail já usado).
+  const handleFinish = async () => {
+    if (!accepted || saving) return;
+    setError("");
+    setSaving(true);
+    try {
+      await onFinish();
+    } catch (err) {
+      setError(err?.message || "Não foi possível concluir o cadastro.");
+      setSaving(false);
+    }
+  };
   return (
     <Screen>
       <TopBar title="Termos e Privacidade" onBack={onBack} />
@@ -26,8 +42,13 @@ export function TermsScreen({ onFinish, onBack }) {
           <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1 w-4 h-4 accent-emerald-600" />
           <span className="text-[12.5px] text-slate-600">Li e aceito os Termos de Uso e a Política de Privacidade, conforme a LGPD.</span>
         </label>
-        <PrimaryButton className="mt-6" disabled={!accepted} onClick={onFinish}>
-          Concluir cadastro
+        {error && (
+          <p role="alert" className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {error}
+          </p>
+        )}
+        <PrimaryButton className="mt-6" disabled={!accepted || saving} onClick={handleFinish}>
+          {saving ? "Criando sua conta…" : "Concluir cadastro"}
         </PrimaryButton>
       </div>
     </Screen>
