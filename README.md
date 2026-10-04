@@ -6,53 +6,122 @@ contratar uma diária (modo **Contratar**) a profissionais que querem trabalhar
 ciclo completo da diária (candidatura → aceite → confirmação → check-in/check-out →
 avaliação), chat com emojis/áudio/PIX e reputação bidirecional.
 
-> **Protótipo.** Todos os dados são mockados e vivem só em memória: recarregar a
+O site tem duas páginas:
+
+| Endereço | O que é |
+|---|---|
+| `/` | Landing page institucional (apresenta o Conexão Free) |
+| `/app/` | O app Conexão Free (frame de celular no computador, tela cheia no celular) |
+
+> **Protótipo.** Todos os dados do app são mockados e vivem só em memória: recarregar a
 > página volta ao estado inicial. Veja [O que é simulado](#o-que-é-simulado-e-exigiria-backend).
 
-## Requisitos
+---
 
-- Node.js 20 ou superior (testado com Node 24)
+## Primeiros passos (do zero)
 
-## Como rodar
+### 1. Instale as ferramentas (uma vez só)
+
+| Ferramenta | Para quê | Onde baixar |
+|---|---|---|
+| **Node.js** (versão LTS, 20 ou superior) | Roda o projeto e instala as dependências (traz o `npm`) | https://nodejs.org |
+| **Visual Studio Code** | Editor para abrir e alterar os arquivos | https://code.visualstudio.com |
+| **Git** (opcional) | Histórico de versões e envio ao GitHub | https://git-scm.com |
+
+Extensões recomendadas no VS Code: **Tailwind CSS IntelliSense** (sugere as classes de estilo)
+e **ES7+ React snippets** (atalhos de React). Ambas são opcionais.
+
+### 2. Abra o projeto
+
+No VS Code: **Arquivo → Abrir Pasta…** e escolha a pasta do projeto
+(`projeto conecta`). Depois abra o terminal integrado: **Terminal → Novo Terminal**.
+
+### 3. Instale as dependências (só na primeira vez, ou quando o `package.json` mudar)
 
 ```bash
 npm install
 ```
 
+### 4. Rode o site
+
 ```bash
 npm run dev
 ```
 
-Abre em `http://localhost:5173`.
+Abra no navegador:
+- Landing: http://localhost:5173/
+- App: http://localhost:5173/app/
+
+Deixe esse terminal aberto. **Ao salvar qualquer arquivo, o navegador atualiza sozinho.**
+Para parar o servidor, clique no terminal e aperte `Ctrl + C`.
+
+### 5. Gere a versão final (para publicar)
 
 ```bash
 npm run build
 ```
 
-Gera o site estático em `dist/`. Para conferir o build localmente:
+Cria a pasta `dist/` com o site pronto. Para conferir essa versão localmente:
 
 ```bash
 npm run preview
 ```
 
-## Estrutura de pastas
+(abre em http://localhost:4173/)
+
+---
+
+## Onde editar cada coisa
 
 ```
-index.html                 Página base (pt-BR, viewport-fit=cover)
+index.html                     Página da landing (título da aba, descrição)
+app/index.html                 Página do app (título da aba)
+public/favicon.svg             Ícone da aba do navegador
 src/
-  main.jsx                 Ponto de entrada: monta o App dentro do Error Boundary
-  App.jsx                  Protótipo completo (componente App e telas)
-  AppErrorBoundary.jsx     Tela de recuperação se alguma tela falhar
-  index.css                Tailwind + frame de celular (desktop) / tela cheia (celular)
-referencia/                Material original, só para consulta (não entra no build)
-  codigo-fonte/            ConexaoFree.jsx original
-  site/                    Versão standalone anterior (CDN)
-  docs/                    Documento de requisitos (RF, RN, BUG)
-  exemplos/                Prompts de exemplo usados como referência
-tailwind.config.js         Tailwind 3 varrendo index.html e src/**/*.{js,jsx}
-postcss.config.js
-vite.config.js             base "./" (funciona em qualquer subpasta)
+  landing/
+    content.js                 ★ TEXTOS da landing (títulos, passos, benefícios)
+    Landing.jsx                Layout da landing (seções, botões, cores)
+    landing.css                Estilo base da landing
+  data/
+    mock.js                    ★ DADOS de exemplo do app (vagas, profissionais, cidades)
+  screens/                     Telas do app
+    FeedScreen.jsx             Mural de vagas, abas, categorias
+    JobDetail.jsx              Detalhe da vaga (candidatar, aceitar, check-in…)
+    MapScreen.jsx              Mapa e raio de busca
+    AgendaScreen.jsx, NotificationsScreen.jsx, RatingScreen.jsx, …
+    auth/                      Login, cadastro, verificação, termos
+    account/                   Minha conta, editar perfil, candidaturas, diárias
+    chat/                      Chat da vaga, lista de conversas, chat direto, perfil do profissional
+  components/                  Peças reutilizáveis
+    ui.jsx                     Botões, campos, TopBar, Pill, Toast
+    BottomNav.jsx              Barra de navegação inferior
+    jobs/                      Cartão de vaga, modais de publicar/filtrar/cancelar
+    chat/                      Emojis, gravação de áudio, bolha de áudio
+  lib/                         Funções utilitárias (distância Haversine, "há X min")
+  App.jsx                      Estado do app e navegação entre telas (regras do fluxo)
+  AppErrorBoundary.jsx         Tela de recuperação se alguma tela falhar
+  index.css                    Frame de celular (computador) / tela cheia (celular)
+  main.jsx                     Ponto de entrada do app
+referencia/                    Material original, só para consulta (não entra no site)
 ```
+
+**Exemplos rápidos**
+
+- Mudar um texto da landing → `src/landing/content.js`.
+- Mudar/adicionar uma vaga de exemplo → `src/data/mock.js` (lista `INITIAL_JOBS`).
+- Mudar o visual de um botão do app → `src/components/ui.jsx`.
+- Mudar o que acontece ao aceitar um candidato → `src/App.jsx` (`handleAccept`).
+
+**Estilos:** o projeto usa [Tailwind CSS](https://tailwindcss.com/docs): o visual é definido
+pelas classes no próprio `className` (ex.: `bg-emerald-600` = fundo verde, `rounded-xl` =
+cantos arredondados, `text-[15px]` = tamanho da fonte). **Ícones:** [lucide-react](https://lucide.dev/icons)
+(importe pelo nome, ex.: `import { MapPin } from "lucide-react"`).
+
+**Regras de negócio que não podem ser quebradas** ao editar estão em
+`referencia/PROMPT_PROJETO_CONEXAO_FREE.md` (ex.: endereço só para o candidato aprovado;
+modais, toasts e botões flutuantes com `position: absolute`, nunca `fixed`).
+
+---
 
 ## Como publicar
 
@@ -61,10 +130,11 @@ O build é um site estático: basta publicar a pasta `dist/`.
 - **Netlify:** comando de build `npm run build`, pasta de publicação `dist`.
 - **Vercel:** framework "Vite", build `npm run build`, saída `dist`.
 - **GitHub Pages:** rode `npm run build` e publique o conteúdo de `dist/`
-  (por exemplo, com a action oficial `actions/deploy-pages`). Como o `base` é
-  relativo, funciona em `https://<usuario>.github.io/<repositorio>/`.
+  (por exemplo, com a action oficial `actions/deploy-pages`). Como os caminhos são
+  relativos, funciona em `https://<usuario>.github.io/<repositorio>/`.
 
-O app não usa rotas de URL hoje, então não precisa de regra de redirecionamento.
+Não precisa de regra de redirecionamento: a landing é `dist/index.html` e o app é
+`dist/app/index.html`.
 
 ## O que é simulado (e exigiria backend)
 
@@ -75,12 +145,17 @@ O app não usa rotas de URL hoje, então não precisa de regra de redirecionamen
 | Documento (RG/CNH), selfie ao vivo, KYC | Captura local, nada é enviado | Upload seguro + verificação de identidade (LGPD) |
 | Dados bancários e chave PIX | Só em memória | Armazenamento criptografado / provedor de pagamento |
 | Vagas, candidaturas, avaliações, notificações | Estado React em memória | Banco de dados + API + push |
+| Endereço da vaga antes do aceite | Escondido na tela | A API nem envia o endereço antes da aprovação |
 | Chat (texto e áudio) | Em memória; áudio é URL local temporária | Mensageria em tempo real + armazenamento de mídia |
 | Mapa | Posições estimadas; distância por Haversine | Geocodificação real dos endereços |
 | Nota das empresas | Valor fixo (mock) | Média calculada das avaliações |
 
 Nenhuma senha, token ou chave fica no código. Se um dia for preciso credencial
-(API, mapas, etc.), ela deve vir de variável de ambiente (`.env`, já ignorado no git).
+(API, mapas etc.), ela deve vir de variável de ambiente (`.env`, já ignorado no git).
+
+## Tecnologias
+
+React 18 · Vite 8 · Tailwind CSS 3 (PostCSS) · lucide-react. Sem backend, sem outras bibliotecas.
 
 ## Documentação do produto
 

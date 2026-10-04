@@ -64,3 +64,18 @@ DOCUMENTACAO_PASSOS.md           Este arquivo
 - Câmera e microfone (selfie e áudio do chat) dependem de permissão do navegador e podem não funcionar dentro do preview do artefato.
 - Áudios do chat existem só como URL local (não persistem); posições do mapa são estimadas.
 - Reorganizar o repositório no GitHub (arquivos aninhados em pastas extras).
+
+---
+
+## Rodada 4 — Projeto web real (Vite) — 03/10/2026
+1. Projeto Vite + React 18 + Tailwind 3 (PostCSS) + lucide-react, com build (`npm run build`).
+2. Protótipo migrado sem mudança de lógica e dividido em `src/screens`, `src/components`,
+   `src/data/mock.js` e `src/lib` (divisão automatizada e conferida declaração por declaração).
+3. Error Boundary do site publicado trazido para `src/AppErrorBoundary.jsx`.
+4. Frame de celular no computador e tela cheia no celular (só CSS).
+5. BUG-501: não reproduzido nos dois chats (dev e build minificado). Mitigações mantidas.
+6. Correções: endereço exato só após o aceite (e fora do HTML antes disso), vaga mock do
+   contratante para percorrer aceite → chat, chave PIX com o nome vigente.
+7. Fase 2: landing page em `/` e app em `/app/` (duas páginas no Vite, sem redirecionamento
+   no servidor). Textos da landing em `src/landing/content.js`.
+8. README com guia de instalação, edição e publicação.
