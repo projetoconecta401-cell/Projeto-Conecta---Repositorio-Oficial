@@ -11,7 +11,7 @@ export function OnboardingProfile({ onSelect }) {
   return (
     <Screen>
       <div className="flex-1 flex flex-col px-6 py-10 justify-center">
-        <h2 className="text-xl font-extrabold text-slate-800 text-center">Como você vai usar a Conexão Free?</h2>
+        <h2 className="text-xl font-extrabold text-slate-800 text-center">Como você vai usar o EiFreela?</h2>
         <p className="text-[13px] text-slate-500 text-center mt-1.5 mb-8">Você poderá alternar isso a qualquer momento no seu perfil</p>
         <div className="space-y-3">
           {options.map((o) => {

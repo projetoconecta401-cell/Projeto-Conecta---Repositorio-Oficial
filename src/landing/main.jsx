@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Landing from "./Landing.jsx";
+import { registrarServiceWorker } from "../registrarSW.js";
 import "./landing.css";
 
 ReactDOM.createRoot(document.getElementById("landing")).render(
@@ -8,3 +9,5 @@ ReactDOM.createRoot(document.getElementById("landing")).render(
     <Landing />
   </React.StrictMode>
 );
+
+registrarServiceWorker();

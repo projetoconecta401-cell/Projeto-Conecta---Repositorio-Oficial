@@ -16,12 +16,12 @@ class AppErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
   componentDidCatch(error, info) {
-    console.error("Conexão Free — erro capturado pelo Error Boundary:", error, info);
+    console.error("EiFreela — erro capturado pelo Error Boundary:", error, info);
   }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center gap-3 p-8 text-center bg-slate-50">
+        <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center gap-3 p-8 text-center bg-slate-50">
           <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center">
             <AlertTriangle size={26} />
           </div>

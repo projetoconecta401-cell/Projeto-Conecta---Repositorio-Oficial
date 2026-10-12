@@ -1,9 +1,10 @@
-import { X, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { useState } from "react";
-import { PERIODS, CITIES, STATES } from "../../data/mock.js";
-import { PrimaryButton, SecondaryButton } from "../ui.jsx";
+import { PERIODS, STATES } from "../../data/catalogo.js";
+import { PrimaryButton, SecondaryButton, Sheet } from "../ui.jsx";
 
-export function FilterModal({ city, state, minValue, period, maxDistance, date, onClose, onApply }) {
+export function FilterModal({ cities = [], temPosicao, city, state, minValue, period, maxDistance, date, onClose, onApply }) {
+  const CITIES = ["Todas", ...cities];
   const [localCity, setLocalCity] = useState(city);
   const [localState, setLocalState] = useState(state);
   const [localMinValue, setLocalMinValue] = useState(minValue);
@@ -21,21 +22,26 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/40 flex items-end">
-      <div className="w-full bg-white rounded-t-3xl p-6 max-h-[88%] overflow-y-auto">
-        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[16px] font-extrabold text-slate-800">Filtrar vagas</h2>
-          <button onClick={onClose}><X size={20} className="text-slate-400" /></button>
+    <Sheet
+      title="Filtrar vagas"
+      onClose={onClose}
+      footer={
+        <div className="flex gap-3">
+          <SecondaryButton onClick={clearAll}>Limpar</SecondaryButton>
+          <PrimaryButton onClick={() => onApply({ city: localCity, state: localState, minValue: localMinValue, period: localPeriod, maxDistance: localMaxDistance, date: localDate })}>
+            Aplicar filtros
+          </PrimaryButton>
         </div>
-        <div className="space-y-4">
+      }
+    >
+        <div className="space-y-4 pt-1">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-[12.5px] font-bold text-slate-600 mb-1.5">Cidade</p>
               <select
                 value={localCity}
                 onChange={(e) => setLocalCity(e.target.value)}
-                className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[16px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               >
                 {CITIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -47,7 +53,7 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
               <select
                 value={localState}
                 onChange={(e) => setLocalState(e.target.value)}
-                className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[16px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               >
                 {STATES.map((s) => (
                   <option key={s} value={s}>{s}</option>
@@ -64,7 +70,7 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
               placeholder="Ex: 150"
               value={localMinValue}
               onChange={(e) => setLocalMinValue(e.target.value)}
-              className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="w-full py-3 px-3.5 rounded-xl border border-slate-200 bg-white text-[16px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             />
           </div>
 
@@ -76,7 +82,7 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
                 type="date"
                 value={localDate}
                 onChange={(e) => setLocalDate(e.target.value)}
-                className="w-full py-3 pl-10 pr-3.5 rounded-xl border border-slate-200 bg-white text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full py-3 pl-10 pr-3.5 rounded-xl border border-slate-200 bg-white text-[16px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
             {localDate && (
@@ -108,7 +114,8 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
           </div>
 
           <div>
-            <p className="text-[12.5px] font-bold text-slate-600 mb-1.5">Distância máxima</p>
+            <p className="text-[12.5px] font-bold text-slate-600 mb-1.5">Distância máxima (aproximada)</p>
+            {!temPosicao && <p className="text-[11.5px] text-slate-400 mb-1.5">Ative sua localização na tela inicial para usar este filtro.</p>}
             <div className="flex gap-2">
               {["Qualquer", 5, 10, 20].map((d) => (
                 <button
@@ -124,13 +131,6 @@ export function FilterModal({ city, state, minValue, period, maxDistance, date, 
             </div>
           </div>
         </div>
-        <div className="flex gap-3 mt-6">
-          <SecondaryButton onClick={clearAll}>Limpar</SecondaryButton>
-          <PrimaryButton onClick={() => onApply({ city: localCity, state: localState, minValue: localMinValue, period: localPeriod, maxDistance: localMaxDistance, date: localDate })}>
-            Aplicar filtros
-          </PrimaryButton>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

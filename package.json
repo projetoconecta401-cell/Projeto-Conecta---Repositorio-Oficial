@@ -1,9 +1,9 @@
 {
-  "name": "conexao-free",
+  "name": "eifreela",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Conexão Free — marketplace de diárias e serviços freelancer (protótipo web, dados mockados)",
+  "description": "EiFreela — marketplace de diárias e serviços freelancer (PWA instalável, Supabase)",
   "engines": {
     "node": ">=20.19.0"
   },

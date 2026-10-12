@@ -1,14 +1,28 @@
-import { Mail, Lock, AlertTriangle, Briefcase, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Screen, Field, PrimaryButton } from "../../components/ui.jsx";
+import { entrarComProvedor } from "../../lib/auth.js";
 
-export function LoginScreen({ onLogin, goCadastro, goForgot, goSocial }) {
+export function LoginScreen({ onLogin, goCadastro, goForgot }) {
   const [show, setShow] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [social, setSocial] = useState(null);
+
+  // Erro 5: login social real pelo Supabase (o navegador vai ao Google/Facebook e volta).
+  const handleSocial = async (provider) => {
+    setLoginError("");
+    setSocial(provider);
+    try {
+      await entrarComProvedor(provider);
+    } catch (err) {
+      setLoginError(err.message);
+      setSocial(null);
+    }
+  };
 
   const emailFormatValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const canSubmit = emailFormatValid && password.length > 0;
@@ -29,13 +43,13 @@ export function LoginScreen({ onLogin, goCadastro, goForgot, goSocial }) {
 
   return (
     <Screen>
-      <div className="flex-1 flex flex-col justify-center px-6 py-10">
+      <div className="flex-1 flex flex-col justify-center w-full max-w-md mx-auto px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
         <div className="mb-10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 mx-auto mb-4 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <Briefcase className="text-white" size={28} />
-          </div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Conexão Free</h1>
-          <p className="text-slate-500 text-[13px] mt-1">Conecta Serviços Freelancer, na hora certa</p>
+          <img src="/icons/icon-192.png" alt="" width="64" height="64" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg shadow-emerald-500/20" />
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+            Ei<span className="text-emerald-600">Freela</span>
+          </h1>
+          <p className="text-slate-500 text-[13px] mt-1">Diárias e freelas perto de você, na hora certa</p>
         </div>
 
         <div className="space-y-3">
@@ -90,13 +104,13 @@ export function LoginScreen({ onLogin, goCadastro, goForgot, goSocial }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => goSocial("google")} className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 bg-white font-semibold text-[14px] text-slate-700 active:scale-[0.98] transition">
-            <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">G</span>
-            Google
+          <button onClick={() => handleSocial("google")} disabled={!!social} className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 bg-white font-semibold text-[14px] text-slate-700 active:scale-[0.98] transition disabled:opacity-60">
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5Z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7Z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44Z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5Z"/></svg>
+            {social === "google" ? "Abrindo…" : "Google"}
           </button>
-          <button onClick={() => goSocial("facebook")} className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 bg-white font-semibold text-[14px] text-slate-700 active:scale-[0.98] transition">
-            <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center">f</span>
-            Facebook
+          <button onClick={() => handleSocial("facebook")} disabled={!!social} className="flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 bg-white font-semibold text-[14px] text-slate-700 active:scale-[0.98] transition disabled:opacity-60">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1877F2" d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v2.9h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12Z"/></svg>
+            {social === "facebook" ? "Abrindo…" : "Facebook"}
           </button>
         </div>
 

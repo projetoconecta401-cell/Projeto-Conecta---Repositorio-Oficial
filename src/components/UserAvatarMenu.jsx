@@ -1,11 +1,12 @@
-import { User, LogOut, Building2 } from "lucide-react";
+import { User, LogOut } from "lucide-react";
+import { Avatar } from "./ui.jsx";
 import { useState, useRef, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  AVATAR DO USUÁRIO — MENU SUSPENSO (Ver perfil / Sair do perfil)    */
 /* ------------------------------------------------------------------ */
 
-export function UserAvatarMenu({ onViewProfile, onLogout, mode, name }) {
+export function UserAvatarMenu({ onViewProfile, onLogout, name, avatarUrl }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -32,9 +33,9 @@ export function UserAvatarMenu({ onViewProfile, onLogout, mode, name }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Menu do usuário"
-        className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-600 to-teal-500 text-white font-bold flex items-center justify-center text-xs shrink-0 ring-2 ring-transparent hover:ring-emerald-200 active:scale-95 transition"
+        className="rounded-full shrink-0 ring-2 ring-transparent hover:ring-emerald-200 active:scale-95 transition"
       >
-        {mode === "contratar" ? <Building2 size={16} /> : (name?.[0] || "V").toUpperCase()}
+        <Avatar url={avatarUrl} nome={name} size={36} />
       </button>
 
       <div

@@ -1,5 +1,5 @@
 /*
- * Textos da landing page do Conexão Free.
+ * Textos da landing page do EiFreela.
  * Para mudar um texto da página, edite aqui; o layout fica em Landing.jsx.
  */
 import {
@@ -15,7 +15,7 @@ export const HERO = {
   eyebrow: "Diárias e serviços freelancer",
   title: "A mão extra que você precisa, na hora certa.",
   subtitle:
-    "O Conexão Free conecta quem precisa contratar uma diária a profissionais verificados perto de você. Publique, encontre, combine e avalie, tudo pelo celular.",
+    "O EiFreela conecta quem precisa contratar uma diária a profissionais perto de você. Publique, encontre, combine e avalie, tudo pelo celular. Instale grátis direto do navegador, sem loja de aplicativos.",
 };
 
 export const CATEGORIES = [
@@ -30,8 +30,8 @@ export const CATEGORIES = [
 export const STEPS = [
   {
     icon: UserCheck,
-    title: "Crie sua conta verificada",
-    text: "Cadastro com verificação de e-mail, documento e selfie ao vivo. Só para maiores de 18 anos.",
+    title: "Crie sua conta em 2 minutos",
+    text: "Nome, CPF, contato, foto e suas áreas de atuação. O e-mail é confirmado com um código. Só para maiores de 18 anos.",
   },
   {
     icon: Search,
@@ -41,7 +41,7 @@ export const STEPS = [
   {
     icon: MessageCircle,
     title: "Combine, trabalhe e avalie",
-    text: "Chat liberado após o aceite, check-in e check-out da diária e avaliação dos dois lados ao final.",
+    text: "Chat com texto e áudio, check-in e check-out da diária e avaliação dos dois lados ao final.",
   },
 ];
 
@@ -55,8 +55,8 @@ export const AUDIENCES = [
     icon: Briefcase,
     points: [
       { icon: Calendar, text: "Publique a vaga com data, horário, valor e bairro" },
-      { icon: Users, text: "Veja candidatos e perfis com nota, competências e histórico" },
-      { icon: MessageCircle, text: "Converse pelo chat da vaga depois de aceitar o candidato" },
+      { icon: Users, text: "Veja candidatos com foto, áreas de atuação e avaliações" },
+      { icon: MessageCircle, text: "Converse pelo chat da vaga, por texto ou áudio" },
       { icon: Star, text: "Acompanhe a diária e avalie o profissional ao final" },
     ],
   },
@@ -69,8 +69,8 @@ export const AUDIENCES = [
     icon: Wallet,
     points: [
       { icon: MapPin, text: "Mapa com vagas abertas no raio que você escolher" },
-      { icon: Bell, text: "Candidate-se e acompanhe o status de cada candidatura" },
-      { icon: Calendar, text: "Confirme presença e faça check-in e check-out pelo app" },
+      { icon: Bell, text: "Receba aviso quando sair vaga nas suas áreas" },
+      { icon: Calendar, text: "Acompanhe a agenda e faça check-in e check-out pelo app" },
       { icon: BadgeCheck, text: "Receba avaliações e mostre sua nota para novos contratantes" },
     ],
   },
@@ -79,13 +79,13 @@ export const AUDIENCES = [
 export const TRUST = [
   {
     icon: ShieldCheck,
-    title: "Identidade verificada",
-    text: "Documento e selfie capturada ao vivo pela câmera, nunca da galeria.",
+    title: "Seus dados protegidos",
+    text: "CPF, telefone e nascimento ficam visíveis só para você. O EiFreela não pede dados bancários.",
   },
   {
     icon: MapPin,
     title: "Endereço protegido",
-    text: "O endereço exato da vaga só é liberado ao candidato aprovado. Antes disso, só o bairro.",
+    text: "As vagas mostram só a região aproximada. O endereço exato é combinado pelo chat.",
   },
   {
     icon: Star,
@@ -95,4 +95,4 @@ export const TRUST = [
 ];
 
 export const FOOTER_NOTE =
-  "Protótipo em desenvolvimento: os dados do app são simulados e não são salvos. Uso exclusivo para maiores de 18 anos.";
+  "Instale grátis na tela inicial do Android ou do iPhone, direto do navegador. Uso exclusivo para maiores de 18 anos.";

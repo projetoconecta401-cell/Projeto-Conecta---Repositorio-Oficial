@@ -1,27 +1,25 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { Toast } from "./components/ui.jsx";
-import { INITIAL_JOBS, PROFESSIONALS, SOCIAL_MOCK } from "./data/mock.js";
-import { conversaDireta, listarConversasDiretas, mesclarMensagens, novaMensagem, salvarMensagem } from "./lib/mensagens.js";
+import { sair, excluirConta } from "./lib/auth.js";
+import { enviarAvatarPendente } from "./lib/perfis.js";
+import { listarConversas, candidatar, abrirConversaDireta } from "./lib/conversas.js";
+import { contarNaoLidas } from "./lib/notificacoes.js";
+import { vagasJaAvaliadas } from "./lib/avaliacoes.js";
+import { avisoDoSistema } from "./lib/push.js";
+import { pedirPosicaoAproximada, posicaoSalva } from "./lib/geo.js";
 import { supabase } from "./lib/supabase.js";
-import { excluirVaga, listarVagas, publicarVaga, validarFormulario, vagaParaJob } from "./lib/vagas.js";
-import { cadastrar, entrar, excluirConta, sair } from "./lib/auth.js";
+import {
+  aceitarCandidato, cancelarContratacao, concluirVaga, desistirDaVaga, excluirVaga, listarVagas, publicarVaga, registrarPresenca,
+} from "./lib/vagas.js";
 import { AccountScreen } from "./screens/account/AccountScreen.jsx";
 import { EditProfileScreen } from "./screens/account/EditProfileScreen.jsx";
 import { MyApplicationsScreen } from "./screens/account/MyApplicationsScreen.jsx";
 import { MyDiariasScreen } from "./screens/account/MyDiariasScreen.jsx";
 import { MyWorkHistoryScreen } from "./screens/account/MyWorkHistoryScreen.jsx";
 import { AgendaScreen } from "./screens/AgendaScreen.jsx";
-import { CadastroScreen } from "./screens/auth/CadastroScreen.jsx";
-import { DocumentSelection } from "./screens/auth/DocumentSelection.jsx";
-import { ForgotPasswordScreen } from "./screens/auth/ForgotPasswordScreen.jsx";
-import { LoginScreen } from "./screens/auth/LoginScreen.jsx";
-import { MiniResume } from "./screens/auth/MiniResume.jsx";
 import { OnboardingProfile } from "./screens/auth/OnboardingProfile.jsx";
-import { SecurityVerification } from "./screens/auth/SecurityVerification.jsx";
-import { TermsScreen } from "./screens/auth/TermsScreen.jsx";
 import { ChatListScreen } from "./screens/chat/ChatListScreen.jsx";
-import { ChatScreen } from "./screens/chat/ChatScreen.jsx";
 import { ConversationChatScreen } from "./screens/chat/ConversationChatScreen.jsx";
 import { ProfessionalProfileScreen } from "./screens/chat/ProfessionalProfileScreen.jsx";
 import { FeedScreen } from "./screens/FeedScreen.jsx";
@@ -33,560 +31,427 @@ import { PostJobSummaryScreen } from "./screens/PostJobSummaryScreen.jsx";
 import { RatingScreen } from "./screens/RatingScreen.jsx";
 
 /* ------------------------------------------------------------------ */
-/*  APP ROOT                                                           */
+/*  APP — tudo vem do Supabase (sem dados de exemplo).                 */
+/*  O AuthGate recria o App a cada troca de conta.                     */
 /* ------------------------------------------------------------------ */
 
-/* session: sessão do Supabase Auth (null = ninguém logado). O AuthGate recria o App
-   a cada troca de conta, então todo o estado abaixo pertence a uma única conta. */
-function App({ session = null }) {
-  const userId = session?.user?.id ?? null;
-  const contaMeta = session?.user?.user_metadata ?? {};
-  const [authStep, setAuthStep] = useState(session ? "done" : "login");
-  // Dados digitados no cadastro; a conta só é criada ao aceitar os Termos (último passo).
-  const [signupData, setSignupData] = useState(null);
-  const [socialProvider, setSocialProvider] = useState(null);
-  const [screen, setScreen] = useState("feed");
-  const [jobDetailReturnScreen, setJobDetailReturnScreen] = useState("feed");
-  const [mode, setMode] = useState(contaMeta.perfil === "contratar" ? "contratar" : "trabalhar");
-  const deriveApplicationStatus = (status) => {
-    if (status === "Em Negociação") return "Em análise";
-    if (status === "Em Atendimento") return "Candidatura oficializada";
+const ABAS = ["feed", "map", "agenda", "notifs", "account", "chatList"];
+const lerModo = () => {
+  try {
+    return localStorage.getItem("eifreela:modo");
+  } catch {
     return null;
-  };
+  }
+};
 
-  const [jobs, setJobs] = useState(() =>
-    INITIAL_JOBS.map((j) => ({
-      ...j,
-      applicationStatus: deriveApplicationStatus(j.status),
-      checkInAt: null,
-      checkOutAt: null,
-      cancelledBy: null,
-      companyRating: 4.8,
-      companyRatingCount: 24 + (j.id % 20),
-    }))
-  );
-  const [activeJob, setActiveJob] = useState(null);
-  const [notifications, setNotifications] = useState([
-    { title: "Novo candidato!", body: "Alguém se candidatou para 'Pedreiro para reforma de varanda'.", read: false },
-  ]);
+function App({ session, perfil, onPerfilAlterado }) {
+  const userId = session.user.id;
+  const [modo, setModoEstado] = useState(lerModo);
+  // Navegação com histórico: o "voltar" do celular volta de tela em vez de fechar o app.
+  const [nav, setNav] = useState({ screen: "feed" });
+  const { screen } = nav;
+  const [jobs, setJobs] = useState([]);
+  const [carregandoVagas, setCarregandoVagas] = useState(true);
+  const [conversations, setConversations] = useState([]);
+  const [carregandoConversas, setCarregandoConversas] = useState(true);
+  const [naoLidas, setNaoLidas] = useState(0);
+  const [avaliadas, setAvaliadas] = useState(new Set());
   const [toast, setToast] = useState(null);
-  const [savedJobIds, setSavedJobIds] = useState([]);
-  const [profile, setProfile] = useState({
-    name: contaMeta.nome || "Você",
-    email: session?.user?.email || "",
-    phone: contaMeta.telefone || "",
-    city: "Ji-Paraná, RO",
-    bio: "",
-    hasPhoto: false,
-    competencies: [],
+  const [posicao, setPosicao] = useState(posicaoSalva);
+  const [savedJobIds, setSavedJobIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`eifreela:favoritas:${userId}`) || "[]");
+    } catch {
+      return [];
+    }
   });
-  const [selectedProfessional, setSelectedProfessional] = useState(null);
-  const [activeConversationId, setActiveConversationId] = useState(null);
-  const [conversations, setConversations] = useState([
-    {
-      id: "prof-1",
-      professionalId: 1,
-      name: "Fernanda Lima",
-      avatar: "FL",
-      unread: 2,
-      lastMessage: "Consigo sim! Que horas seria o evento?",
-      lastTime: new Date(Date.now() - 1000 * 60 * 35),
-      messages: [
-        { from: "them", text: "Olá! Vi que você tem uma vaga de recepção, ainda está disponível?" },
-        { from: "me", text: "Oi Fernanda! Sim, ainda está aberta." },
-        { from: "them", text: "Consigo sim! Que horas seria o evento?" },
-      ],
-    },
-  ]);
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  const timerToast = useRef(null);
 
-  const pushToast = (t) => {
+  const profile = { ...perfil, name: perfil.nome };
+
+  /* ---------------------------------------------------------- navegação -- */
+  const go = useCallback((screen, extras = {}) => {
+    const novo = { screen, ...extras };
+    window.history.pushState(novo, "");
+    setNav(novo);
+    window.scrollTo(0, 0);
+  }, []);
+  const back = useCallback(() => window.history.back(), []);
+
+  useEffect(() => {
+    window.history.replaceState({ screen: "feed" }, "");
+    const aoVoltar = (e) => {
+      setNav(e.state?.screen ? e.state : { screen: "feed" });
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("popstate", aoVoltar);
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, []);
+
+  const pushToast = useCallback((t) => {
     setToast(t);
-    setNotifications((n) => [{ ...t, read: false }, ...n]);
-    setTimeout(() => setToast(null), 3500);
+    clearTimeout(timerToast.current);
+    timerToast.current = setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  /* ------------------------------------------------------------ dados -- */
+  const recarregarVagas = useCallback(async () => {
+    try {
+      setJobs(await listarVagas(userId));
+    } catch (err) {
+      pushToast({ title: "Vagas indisponíveis", body: err.message });
+    } finally {
+      setCarregandoVagas(false);
+    }
+  }, [userId, pushToast]);
+
+  const recarregarConversas = useCallback(async () => {
+    try {
+      setConversations(await listarConversas(userId));
+    } catch (err) {
+      pushToast({ title: "Conversas indisponíveis", body: err.message });
+    } finally {
+      setCarregandoConversas(false);
+    }
+  }, [userId, pushToast]);
+
+  const recarregarAvisos = useCallback(async () => setNaoLidas(await contarNaoLidas()), []);
+  const recarregarAvaliadas = useCallback(async () => setAvaliadas(await vagasJaAvaliadas(userId)), [userId]);
+
+  useEffect(() => {
+    recarregarVagas();
+    recarregarConversas();
+    recarregarAvisos();
+    recarregarAvaliadas();
+    // Foto escolhida no cadastro: envia agora que a conta já está logada.
+    enviarAvatarPendente(userId)
+      .then((url) => url && onPerfilAlterado())
+      .catch(() => pushToast({ title: "Foto não enviada", body: "Tente de novo em Perfil → Editar perfil." }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tempo real: vagas, notificações e mensagens.
+  useEffect(() => {
+    let espera;
+    const vagasDepois = () => {
+      clearTimeout(espera);
+      espera = setTimeout(recarregarVagas, 400);
+    };
+    const canal = supabase
+      .channel(`app-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "vagas" }, vagasDepois)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversas" }, () => {
+        recarregarConversas();
+        vagasDepois();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificacoes", filter: `usuario_id=eq.${userId}` }, ({ new: n }) => {
+        setNaoLidas((x) => x + 1);
+        pushToast({
+          title: n.titulo,
+          body: n.corpo,
+          onClick: n.vaga_id ? () => go("jobDetail", { jobId: n.vaga_id }) : () => go("notifs"),
+        });
+        avisoDoSistema(n.titulo, n.corpo ?? "", "/app/");
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_mensagens" }, ({ new: m }) => {
+        recarregarConversas();
+        if (m.autor_id === userId) return;
+        const atual = navRef.current;
+        if (atual.screen === "conversationChat" && atual.conversaId === m.conversa_id) return;
+        const texto = m.tipo === "audio" ? "🎤 Mensagem de voz" : m.texto;
+        pushToast({ title: "💬 Nova mensagem", body: texto, onClick: () => go("conversationChat", { conversaId: m.conversa_id }) });
+        avisoDoSistema("Nova mensagem no EiFreela", texto ?? "", "/app/");
+      })
+      .subscribe();
+    return () => {
+      clearTimeout(espera);
+      supabase.removeChannel(canal);
+    };
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (screen === "chatList") recarregarConversas();
+    if (screen === "feed" || screen === "notifs") recarregarAvisos();
+  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* --------------------------------------------------------- ações -- */
+  const setMode = (m) => {
+    setModoEstado(m);
+    try {
+      localStorage.setItem("eifreela:modo", m);
+    } catch {
+      /* ignorado */
+    }
   };
 
   const handleToggleSaveJob = (id) => {
-    setSavedJobIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-  };
-
-  const handleOpenNotifications = () => {
-    setScreen("notifs");
-  };
-
-  const updateJob = (id, patch) => setJobs((js) => js.map((j) => (j.id === id ? { ...j, ...patch } : j)));
-
-  // Campos de controle do ciclo da diária (em memória) para vagas vindas do banco.
-  const withAppFields = (job) => ({
-    ...job,
-    applicationStatus: deriveApplicationStatus(job.status),
-    checkInAt: null,
-    checkOutAt: null,
-    cancelledBy: null,
-    companyRating: 4.8,
-    companyRatingCount: 24,
-  });
-
-  // Mural dinâmico: carrega as vagas publicadas no Supabase (as de exemplo continuam abaixo).
-  useEffect(() => {
-    if (!supabase) return;
-    let cancelled = false;
-    listarVagas(userId)
-      .then((vagas) => {
-        if (cancelled) return;
-        setJobs((js) => [...vagas.filter((v) => !js.some((j) => j.id === v.id)).map(withAppFields), ...js]);
-      })
-      .catch((err) => {
-        if (!cancelled) pushToast({ title: "Vagas indisponíveis", body: err.message });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Chat direto: recupera as conversas salvas da conta (inclusive as iniciadas em outro aparelho).
-  useEffect(() => {
-    if (!supabase || !userId) return;
-    let cancelled = false;
-    listarConversasDiretas()
-      .then((porConversa) => {
-        if (cancelled) return;
-        setConversations((cs) => {
-          let next = cs.map((c) => (porConversa[c.id] ? { ...c, messages: mesclarMensagens(c.messages, porConversa[c.id]) } : c));
-          for (const [id, msgs] of Object.entries(porConversa)) {
-            if (next.some((c) => c.id === id)) continue;
-            const prof = PROFESSIONALS.find((p) => `prof-${p.id}` === id);
-            if (!prof) continue;
-            next = [{ id, professionalId: prof.id, name: prof.name, avatar: prof.avatar, unread: 0, messages: msgs }, ...next];
-          }
-          return next.map((c) => {
-            const salvas = porConversa[c.id];
-            if (!salvas?.length) return c;
-            const ultima = salvas[salvas.length - 1];
-            const ultimaData = new Date(ultima.createdAt);
-            return !c.lastTime || ultimaData > c.lastTime ? { ...c, lastMessage: ultima.text, lastTime: ultimaData } : c;
-          });
-        });
-      })
-      .catch((err) => !cancelled && pushToast({ title: "Conversas indisponíveis", body: err.message }));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (screen === "notifs") {
-      setNotifications((n) => (n.some((item) => !item.read) ? n.map((item) => ({ ...item, read: true })) : n));
-    }
-  }, [screen]);
-
-  const handleApply = (job) => {
-    updateJob(job.id, { status: "Em Negociação", candidate: "Você", applicationStatus: "Em análise" });
-    pushToast({ title: "Candidatura enviada!", body: `${job.contractor} foi notificado da sua candidatura.` });
-    setActiveJob({ ...job, status: "Em Negociação", candidate: "Você", applicationStatus: "Em análise" });
-  };
-
-  const handleAccept = (job) => {
-    const updated = { ...job, status: "Em Atendimento", applicationStatus: "Candidatura oficializada" };
-    updateJob(job.id, { status: "Em Atendimento", applicationStatus: "Candidatura oficializada" });
-    pushToast({ title: "Candidato aceito ✅", body: `A vaga "${job.title}" saiu do mural público.` });
-    setActiveJob(updated);
-    setScreen("officialized");
-  };
-
-  const handleConfirmParticipation = (job) => {
-    const hasConflict = jobs.some(
-      (j) =>
-        j.id !== job.id &&
-        j.candidate === "Você" &&
-        ["Diária agendada", "Em andamento"].includes(j.applicationStatus) &&
-        j.dateISO &&
-        job.dateISO &&
-        j.dateISO === job.dateISO
-    );
-    if (hasConflict) {
-      pushToast({ title: "Conflito de horário", body: "Você já possui uma diária confirmada neste dia." });
-      return;
-    }
-    updateJob(job.id, { applicationStatus: "Diária agendada" });
-    pushToast({ title: "Diária confirmada! ✅", body: "A empresa foi avisada que você confirmou." });
-    setActiveJob({ ...job, applicationStatus: "Diária agendada" });
-    setScreen("jobDetail");
-  };
-
-  const handleCheckIn = (job) => {
-    const now = new Date();
-    updateJob(job.id, { applicationStatus: "Em andamento", checkInAt: now });
-    pushToast({ title: "Check-in registrado", body: `Horário: ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` });
-    setActiveJob({ ...job, applicationStatus: "Em andamento", checkInAt: now });
-  };
-
-  const handleCheckOut = (job) => {
-    const now = new Date();
-    updateJob(job.id, { applicationStatus: "Diária concluída", checkOutAt: now });
-    pushToast({ title: "🔔 Diária concluída", body: "Avalie sua experiência com a empresa." });
-    setActiveJob({ ...job, applicationStatus: "Diária concluída", checkOutAt: now });
-    setScreen("rating");
-  };
-
-  const handleReopen = (job, cancelledBy = "profissional", reason = "") => {
-    updateJob(job.id, { status: "Disponível", candidate: null, applicationStatus: "Cancelada", cancelledBy, cancelReason: reason });
-    pushToast({
-      title: "Vaga reaberta",
-      body: cancelledBy === "empresa" ? `"${job.title}" foi cancelada pela empresa.` : `"${job.title}" voltou a ficar disponível no mural.`,
+    setSavedJobIds((ids) => {
+      const novo = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+      try {
+        localStorage.setItem(`eifreela:favoritas:${userId}`, JSON.stringify(novo));
+      } catch {
+        /* ignorado */
+      }
+      return novo;
     });
-    setScreen("feed");
-    setActiveJob(null);
   };
 
-  const handleComplete = (job) => {
-    setActiveJob(job);
-    setScreen("rating");
+  const handlePedirPosicao = async () => {
+    try {
+      const p = await pedirPosicaoAproximada();
+      setPosicao(p);
+      pushToast({ title: "Localização aproximada ativada", body: "As vagas mostram a distância aproximada até você." });
+      return p;
+    } catch (err) {
+      pushToast({ title: "Localização indisponível", body: err.message });
+      return null;
+    }
   };
 
-  const handleRatingSubmit = (ratingData) => {
-    updateJob(activeJob.id, {
-      status: "Concluída",
-      applicationStatus: "Finalizada",
-      rating: ratingData,
+  // Executa uma ação, mostra o erro em toast e recarrega as vagas.
+  const executar = async (acao, sucesso) => {
+    try {
+      await acao();
+      if (sucesso) pushToast(sucesso);
+      await recarregarVagas();
+      return true;
+    } catch (err) {
+      pushToast({ title: "Não foi possível concluir", body: err.message });
+      return false;
+    }
+  };
+
+  const handleApply = async (job) => {
+    try {
+      const conversaId = await candidatar(job, userId);
+      pushToast({ title: "Candidatura enviada!", body: "O contratante foi avisado. Continue a conversa pelo chat." });
+      recarregarVagas();
+      recarregarConversas();
+      go("conversationChat", { conversaId });
+    } catch (err) {
+      pushToast({ title: "Candidatura não enviada", body: err.message });
+    }
+  };
+
+  const handleAccept = (job, freelancerId) =>
+    executar(() => aceitarCandidato(job.id, freelancerId), {
+      title: "Candidato aceito ✅",
+      body: `"${job.title}" saiu do mural. O profissional foi avisado.`,
     });
-    pushToast({ title: "Avaliação enviada!", body: "Obrigado por avaliar a empresa." });
-    setScreen("postJobSummary");
+
+  const handleCancelHire = (job) =>
+    executar(() => cancelarContratacao(job.id), { title: "Contratação cancelada", body: "A vaga voltou para o mural." });
+
+  const handleWithdraw = async (job, motivo) => {
+    const ok = await executar(() => desistirDaVaga(job.id, motivo), { title: "Você desistiu da diária", body: "A vaga voltou para o mural." });
+    if (ok) back();
   };
 
-  // Publica no Supabase (todos passam a ver a vaga). Sem Supabase configurado, cria só em memória.
-  // Lança erro com mensagem amigável: o formulário mostra o erro e continua aberto.
+  const handleCheckIn = (job) =>
+    executar(() => registrarPresenca(job.id, "entrada"), {
+      title: "Check-in registrado",
+      body: `Horário: ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+    });
+
+  const handleCheckOut = async (job) => {
+    const ok = await executar(() => registrarPresenca(job.id, "saida"), { title: "🔔 Diária concluída", body: "Avalie como foi com o contratante." });
+    if (ok) go("rating", { jobId: job.id });
+  };
+
+  const handleComplete = async (job) => {
+    const ok = await executar(() => concluirVaga(job.id), { title: "Diária concluída", body: "Avalie o profissional." });
+    if (ok) go("rating", { jobId: job.id });
+  };
+
   const handlePublish = async (formData) => {
-    let newJob;
-    if (supabase) {
-      if (!userId) throw new Error("Entre na sua conta para publicar vagas.");
-      newJob = await publicarVaga(formData, userId);
-    } else {
-      const { dados, erro } = validarFormulario(formData);
-      if (erro) throw new Error(erro);
-      newJob = vagaParaJob({ ...dados, id: Date.now(), usuario_id: "local", status: "Disponível" }, "local");
-    }
-    setJobs((js) => [withAppFields(newJob), ...js]);
-    pushToast({ title: "Vaga publicada!", body: "Prestadores próximos serão notificados." });
+    const job = await publicarVaga(formData, userId, { contratante: perfil.nome, posicao: formData.usarLocal ? posicao : null });
+    setJobs((js) => [job, ...js.filter((j) => j.id !== job.id)]);
+    pushToast({ title: "Vaga publicada!", body: "Quem atua nessa área foi avisado." });
   };
-
-  const ACTIVE_APPLICATION_STATUSES = [
-    "Em análise", "Candidatura oficializada", "Diária agendada", "Em andamento", "Diária concluída",
-  ];
 
   const handleDeleteJob = async (job) => {
-    const id = typeof job === "object" ? job.id : job;
-    const target = typeof job === "object" ? job : jobs.find((j) => j.id === id);
-    const hasActiveCandidate =
-      target && target.candidate && ACTIVE_APPLICATION_STATUSES.includes(target.applicationStatus);
-    if (hasActiveCandidate) {
-      pushToast({
-        title: "Não é possível excluir",
-        body: "Esta vaga tem uma candidatura em andamento. Cancele a negociação com o profissional antes de excluir.",
-      });
+    if (["Em Negociação", "Em Atendimento"].includes(job.status) && job.contratadoId) {
+      pushToast({ title: "Não é possível excluir", body: "Esta vaga tem um profissional contratado. Cancele a contratação antes de excluir." });
       return;
     }
-    // Vagas do banco: exclui de verdade (regra no banco: só o dono). Exemplos: só na tela.
-    if (target?.source === "supabase") {
-      try {
-        await excluirVaga(id);
-      } catch (err) {
-        pushToast({ title: "Não foi possível excluir", body: err.message });
-        return;
-      }
-    }
-    setJobs((js) => js.filter((j) => j.id !== id));
-    pushToast({ title: "Vaga excluída", body: "A vaga foi removida do seu painel e do mural." });
+    if (!window.confirm(`Excluir a vaga "${job.title}"? As conversas dela também serão apagadas.`)) return;
+    const ok = await executar(() => excluirVaga(job.id), { title: "Vaga excluída", body: "A vaga foi removida do mural." });
+    if (ok && screen === "jobDetail") back();
   };
 
-  const handleOpenProfile = (professional) => {
-    setSelectedProfessional(professional);
-    setScreen("professionalProfile");
-  };
-
-  const handleOpenConversation = (conv) => {
-    setConversations((cs) => cs.map((c) => (c.id === conv.id ? { ...c, unread: 0 } : c)));
-    setActiveConversationId(conv.id);
-    setScreen("conversationChat");
-  };
-
-  const handleStartOrOpenConversation = (professional) => {
-    const existing = conversations.find((c) => c.professionalId === professional.id);
-    if (existing) {
-      handleOpenConversation(existing);
-      return;
-    }
-    const newConv = {
-      id: `prof-${professional.id}`,
-      professionalId: professional.id,
-      name: professional.name,
-      avatar: professional.avatar,
-      unread: 0,
-      lastMessage: "Conversa iniciada",
-      lastTime: new Date(),
-      messages: [],
-    };
-    setConversations((cs) => [newConv, ...cs]);
-    setActiveConversationId(newConv.id);
-    setScreen("conversationChat");
-  };
-
-  const handleSendConversationMessage = (conversationId, content) => {
-    const isAudio = typeof content === "object" && content !== null;
-    const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    // Texto: id estável (mesmo na tela e no banco) e salvo no Supabase. Áudio: só na tela.
-    const messagePart = isAudio
-      ? { id: msgId, from: "me", type: "audio", audioUrl: content.audioUrl, duration: content.duration }
-      : novaMensagem(content);
-    if (!isAudio) {
-      salvarMensagem(conversaDireta(conversationId), messagePart).catch((err) =>
-        pushToast({ title: "Mensagem não salva", body: err.message })
-      );
-    }
-    const lastMessagePreview = isAudio ? "🎤 Mensagem de voz" : content;
-    setConversations((cs) =>
-      cs.map((c) =>
-        c.id === conversationId
-          ? { ...c, messages: [...c.messages, messagePart], lastMessage: lastMessagePreview, lastTime: new Date() }
-          : c
-      )
-    );
-  };
-
-  /* ---- CONTA (Supabase Auth; sem Supabase configurado, tudo simulado) ---- */
-  const handleLogin = async (email, password) => {
-    if (!supabase) {
-      setAuthStep("done");
-      return;
-    }
-    await entrar(email, password); // sucesso: o AuthGate recria o App já logado
-  };
-
-  // Último passo do cadastro: cria a conta e entra (o AuthGate abre o app logado).
-  const handleFinishSignup = async () => {
-    if (!supabase) {
-      setAuthStep("done");
-      return;
-    }
-    if (!signupData) throw new Error("Dados do cadastro não encontrados. Volte e preencha o cadastro.");
-    await cadastrar({
-      nome: signupData.name,
-      email: signupData.email,
-      senha: signupData.password,
-      telefone: signupData.phone,
-      nascimento: signupData.birthDate,
-      perfil: mode,
-      codigo: signupData.emailCode,
-    });
-  };
-
-  const handleLogout = () => {
-    setScreen("feed");
-    if (supabase) sair();
-    else setAuthStep("login");
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!supabase) {
-      setAuthStep("login");
-      return;
-    }
+  const handleMessageProfessional = async (prof) => {
     try {
-      await excluirConta(); // apaga a conta, as vagas e as mensagens dela
+      const conversaId = await abrirConversaDireta(userId, prof.id);
+      recarregarConversas();
+      go("conversationChat", { conversaId });
+    } catch (err) {
+      pushToast({ title: "Conversa não iniciada", body: err.message });
+    }
+  };
+
+  const handleLogout = () => sair();
+  const handleDeleteAccount = async () => {
+    try {
+      await excluirConta();
     } catch (err) {
       pushToast({ title: "Conta não excluída", body: err.message });
     }
   };
 
-  /* ---- AUTH FLOW ---- */
-  if (authStep !== "done") {
-    const steps = {
-      login: (
-        <LoginScreen
-          onLogin={handleLogin}
-          goCadastro={() => setAuthStep("cadastro")}
-          goForgot={() => setAuthStep("forgotPassword")}
-          goSocial={(provider) => {
-            setSocialProvider(provider);
-            setAuthStep("cadastro");
-          }}
-        />
-      ),
-      forgotPassword: <ForgotPasswordScreen onBack={() => setAuthStep("login")} />,
-      cadastro: (
-        <CadastroScreen
-          onBack={() => {
-            setSocialProvider(null);
-            setAuthStep("login");
-          }}
-          onNext={(dados) => {
-            setSignupData(dados);
-            setAuthStep("onboarding");
-          }}
-          socialProvider={socialProvider}
-          socialPrefill={socialProvider ? SOCIAL_MOCK[socialProvider] : null}
-        />
-      ),
-      onboarding: (
-        <OnboardingProfile
-          onSelect={(m) => {
-            setMode(m);
-            setAuthStep("document");
-          }}
-        />
-      ),
-      document: <DocumentSelection onBack={() => setAuthStep("onboarding")} onNext={() => setAuthStep("security")} />,
-      security: <SecurityVerification onBack={() => setAuthStep("document")} onNext={() => setAuthStep("resume")} />,
-      resume: (
-        <MiniResume
-          onBack={() => setAuthStep("security")}
-          onSkip={() => setAuthStep("terms")}
-          onNext={() => setAuthStep("terms")}
-        />
-      ),
-      terms: <TermsScreen onBack={() => setAuthStep("resume")} onFinish={handleFinishSignup} />,
-    };
-    return (
-      <div className="w-full max-w-sm mx-auto h-[820px] max-h-[92vh] bg-slate-50 rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 flex flex-col relative font-sans">
-        {steps[authStep]}
-      </div>
-    );
-  }
+  /* ---------------------------------------------- escolha do modo -- */
+  if (!modo) return <OnboardingProfile onSelect={setMode} />;
 
-  /* ---- MAIN APP ---- */
-  let content;
-  const unreadNotifications = notifications.filter((n) => !n.read).length;
+  /* ------------------------------------------------------- telas -- */
+  const jobById = (id) => jobs.find((j) => j.id === id);
+  const abrirVaga = (j) => go("jobDetail", { jobId: j.id });
+  let content = null;
 
   if (screen === "feed")
     content = (
       <FeedScreen
-        mode={mode}
+        mode={modo}
         jobs={jobs}
-        onOpenJob={(j) => { setActiveJob(j); setJobDetailReturnScreen("feed"); setScreen("jobDetail"); }}
+        loading={carregandoVagas}
+        userId={userId}
+        posicao={posicao}
+        onPedirPosicao={handlePedirPosicao}
+        onOpenJob={abrirVaga}
         onPublish={handlePublish}
         onDeleteJob={handleDeleteJob}
-        onOpenProfile={handleOpenProfile}
+        onOpenProfile={(p) => go("professionalProfile", { profId: p.id })}
         savedJobIds={savedJobIds}
         onToggleSave={handleToggleSaveJob}
-        unreadNotifications={unreadNotifications}
-        onOpenNotifications={handleOpenNotifications}
-        onViewProfile={() => setScreen("account")}
+        unreadNotifications={naoLidas}
+        onOpenNotifications={() => go("notifs")}
+        onViewProfile={() => go("account")}
         onLogout={handleLogout}
         profile={profile}
       />
     );
-  else if (screen === "jobDetail")
+  else if (screen === "jobDetail") {
+    const job = jobById(nav.jobId);
     content = (
       <JobDetail
-        job={jobs.find((j) => j.id === activeJob.id) || activeJob}
-        onBack={() => setScreen(jobDetailReturnScreen)}
+        job={job}
+        loading={carregandoVagas}
+        userId={userId}
+        posicao={posicao}
+        jaAvaliei={job ? avaliadas.has(job.id) : false}
+        onBack={back}
         onApply={handleApply}
         onAccept={handleAccept}
-        onReopen={handleReopen}
-        onGoChat={(j) => { setActiveJob(j); setScreen("chat"); }}
+        onCancelHire={handleCancelHire}
+        onWithdraw={handleWithdraw}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
+        onComplete={handleComplete}
+        onDelete={handleDeleteJob}
+        onRate={(j) => go("rating", { jobId: j.id })}
+        onOpenChat={(conversaId) => go("conversationChat", { conversaId })}
+        onOpenProfile={(id) => go("professionalProfile", { profId: id })}
+        onOfficialized={(j) => go("officialized", { jobId: j.id })}
       />
     );
-  else if (screen === "map")
-    content = (
-      <MapScreen
-        jobs={jobs}
-        pushToast={pushToast}
-        onOpenJob={(j) => { setActiveJob(j); setJobDetailReturnScreen("map"); setScreen("jobDetail"); }}
-      />
-    );
-  else if (screen === "agenda") content = <AgendaScreen jobs={jobs} onOpenJob={(j) => { setActiveJob(j); setJobDetailReturnScreen("agenda"); setScreen("jobDetail"); }} />;
-  else if (screen === "notifs") content = <NotificationsScreen notifications={notifications} />;
+  } else if (screen === "map")
+    content = <MapScreen jobs={jobs} posicao={posicao} onPedirPosicao={handlePedirPosicao} onOpenJob={abrirVaga} />;
+  else if (screen === "agenda") content = <AgendaScreen jobs={jobs} onOpenJob={abrirVaga} />;
+  else if (screen === "notifs")
+    content = <NotificationsScreen userId={userId} onOpenJob={(id) => go("jobDetail", { jobId: id })} onChanged={recarregarAvisos} />;
   else if (screen === "account")
     content = (
       <AccountScreen
-        mode={mode}
+        mode={modo}
         setMode={setMode}
-        onBack={() => setScreen("feed")}
         onDelete={handleDeleteAccount}
         onLogout={handleLogout}
-        onOpenHistory={() => setScreen("workHistory")}
-        onOpenApplications={() => setScreen("myApplications")}
-        onOpenDiarias={() => setScreen("myDiarias")}
+        onOpenHistory={() => go("workHistory")}
+        onOpenApplications={() => go("myApplications")}
+        onOpenDiarias={() => go("myDiarias")}
         profile={profile}
-        onEditProfile={() => setScreen("editProfile")}
+        onEditProfile={() => go("editProfile")}
       />
     );
   else if (screen === "editProfile")
     content = (
       <EditProfileScreen
-        mode={mode}
         profile={profile}
-        onSave={(updated) => setProfile(updated)}
-        onBack={() => setScreen("account")}
+        onSaved={async () => {
+          await onPerfilAlterado();
+          pushToast({ title: "Perfil atualizado" });
+          back();
+        }}
+        onBack={back}
       />
     );
-  else if (screen === "workHistory")
-    content = <MyWorkHistoryScreen onBack={() => setScreen("account")} />;
-  else if (screen === "myApplications")
+  else if (screen === "workHistory") content = <MyWorkHistoryScreen jobs={jobs} userId={userId} onBack={back} onOpenJob={abrirVaga} />;
+  else if (screen === "myApplications") content = <MyApplicationsScreen jobs={jobs} onBack={back} onOpenJob={abrirVaga} />;
+  else if (screen === "myDiarias") content = <MyDiariasScreen jobs={jobs} onBack={back} onOpenJob={abrirVaga} />;
+  else if (screen === "rating") {
+    const job = jobById(nav.jobId);
     content = (
-      <MyApplicationsScreen
-        jobs={jobs}
-        onBack={() => setScreen("account")}
-        onOpenJob={(j) => { setActiveJob(j); setJobDetailReturnScreen("myApplications"); setScreen("jobDetail"); }}
+      <RatingScreen
+        job={job}
+        userId={userId}
+        onBack={back}
+        onSubmitted={async () => {
+          await recarregarAvaliadas();
+          pushToast({ title: "Avaliação enviada!", body: "Obrigado por avaliar." });
+          if (job?.isHired) go("postJobSummary");
+          else back();
+        }}
       />
     );
-  else if (screen === "myDiarias")
+  } else if (screen === "officialized")
     content = (
-      <MyDiariasScreen
-        jobs={jobs}
-        onBack={() => setScreen("account")}
-        onOpenJob={(j) => { setActiveJob(j); setJobDetailReturnScreen("myDiarias"); setScreen("jobDetail"); }}
+      <OfficializedScreen
+        job={jobById(nav.jobId)}
+        onBack={back}
+        onOpenChat={(conversaId) => go("conversationChat", { conversaId })}
       />
     );
-  else if (screen === "chat")
-    content = (
-      <ChatScreen
-        job={jobs.find((j) => j.id === activeJob.id) || activeJob}
-        onBack={() => setScreen("jobDetail")}
-        onComplete={handleComplete}
-        onCancel={handleReopen}
-      />
-    );
-  else if (screen === "rating") content = <RatingScreen job={activeJob} onBack={() => setScreen("jobDetail")} onSubmit={handleRatingSubmit} />;
-  else if (screen === "officialized")
-    content = <OfficializedScreen job={activeJob} onBack={() => setScreen("jobDetail")} onConfirm={handleConfirmParticipation} />;
   else if (screen === "postJobSummary")
-    content = <PostJobSummaryScreen jobs={jobs} onDone={() => { setScreen("feed"); setActiveJob(null); }} />;
+    content = <PostJobSummaryScreen jobs={jobs} userId={userId} onDone={() => go("feed")} />;
   else if (screen === "professionalProfile")
+    content = <ProfessionalProfileScreen profId={nav.profId} userId={userId} onBack={back} onMessage={handleMessageProfessional} />;
+  else if (screen === "chatList")
     content = (
-      <ProfessionalProfileScreen
-        professional={selectedProfessional}
-        onBack={() => setScreen("feed")}
-        onMessage={handleStartOrOpenConversation}
+      <ChatListScreen
+        conversations={conversations}
+        loading={carregandoConversas}
+        onOpenConversation={(c) => go("conversationChat", { conversaId: c.id })}
       />
     );
-  else if (screen === "chatList")
-    content = <ChatListScreen conversations={conversations} onOpenConversation={handleOpenConversation} />;
-  else if (screen === "conversationChat") {
-    const activeConversation = conversations.find((c) => c.id === activeConversationId);
-    content = activeConversation ? (
+  else if (screen === "conversationChat")
+    content = (
       <ConversationChatScreen
-        conversation={activeConversation}
-        onBack={() => setScreen("chatList")}
-        onSend={handleSendConversationMessage}
+        key={nav.conversaId}
+        conversaId={nav.conversaId}
+        userId={userId}
+        jobs={jobs}
+        onBack={back}
+        onRead={recarregarConversas}
+        onOpenJob={abrirVaga}
+        onOpenProfile={(id) => go("professionalProfile", { profId: id })}
+        onAccept={handleAccept}
       />
-    ) : null;
-  }
+    );
 
-  const showNav = ["feed", "map", "agenda", "notifs", "account", "chatList"].includes(screen);
+  const showNav = ABAS.includes(screen);
   const unreadConversations = conversations.filter((c) => c.unread > 0).length;
 
   return (
-    <div className="w-full max-w-sm mx-auto h-[820px] max-h-[92vh] bg-slate-50 rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 flex flex-col relative font-sans">
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar{display:none}
-        .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
-        @keyframes fadeIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
-      `}</style>
-      <Toast toast={toast} />
-      <div className="flex-1 overflow-y-auto no-scrollbar">{content}</div>
-      {showNav && <BottomNav active={screen} setScreen={setScreen} mode={mode} unreadConversations={unreadConversations} />}
+    <div className={`w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto min-h-[100dvh] bg-slate-50 font-sans relative ${showNav ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]" : ""}`}>
+      <Toast toast={toast} onClose={() => setToast(null)} />
+      {content}
+      {showNav && (
+        <BottomNav
+          active={screen}
+          setScreen={(s) => (s === screen ? window.scrollTo({ top: 0, behavior: "smooth" }) : go(s))}
+          unreadConversations={unreadConversations}
+          unreadNotifications={naoLidas}
+        />
+      )}
     </div>
   );
 }

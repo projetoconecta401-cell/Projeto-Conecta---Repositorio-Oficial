@@ -2,7 +2,7 @@ import { Check, Camera, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
-/*  LIVE CAMERA CAPTURE (verificação de identidade por selfie ao vivo) */
+/*  LIVE CAMERA CAPTURE (foto de perfil tirada na hora pela câmera) */
 /* ------------------------------------------------------------------ */
 
 export function CameraCaptureModal({ title, hint, onCapture, onClose }) {
@@ -60,7 +60,7 @@ export function CameraCaptureModal({ title, hint, onCapture, onClose }) {
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-4">
       <div className="w-full max-w-xs bg-slate-900 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
           <p className="text-white font-bold text-[13.5px]">{title}</p>
