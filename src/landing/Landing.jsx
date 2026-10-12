@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Briefcase, CheckCircle2, MapPin, Menu, Star, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, MapPin, Menu, Star, X } from "lucide-react";
 import { APP_URL, AUDIENCES, CATEGORIES, FOOTER_NOTE, HERO, STEPS, TRUST } from "./content.js";
 
 /* Revela o conteúdo ao entrar na tela (fade + leve subida).
@@ -42,12 +42,16 @@ function Reveal({ children, className = "", delay = 0, as: Tag = "div" }) {
 function Logo({ small = false }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span
-        className={`${small ? "w-9 h-9 rounded-xl" : "w-10 h-10 rounded-2xl"} bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20`}
-      >
-        <Briefcase className="text-white" size={small ? 17 : 19} aria-hidden="true" />
+      <img
+        src="/icons/icon-192.png"
+        alt=""
+        width="40"
+        height="40"
+        className={`${small ? "w-9 h-9 rounded-xl" : "w-10 h-10 rounded-2xl"} shadow-lg shadow-emerald-500/20`}
+      />
+      <span className="font-extrabold text-slate-800 tracking-tight text-[17px]">
+        Ei<span className="text-emerald-600">Freela</span>
       </span>
-      <span className="font-extrabold text-slate-800 tracking-tight text-[17px]">Conexão Free</span>
     </span>
   );
 }
@@ -89,7 +93,7 @@ function Header() {
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        <a href="#inicio" aria-label="Conexão Free, início da página">
+        <a href="#inicio" aria-label="EiFreela, início da página">
           <Logo small />
         </a>
         <nav className="hidden md:flex items-center gap-7 text-[14px] font-medium text-slate-600" aria-label="Seções">
@@ -380,7 +384,7 @@ export default function Landing() {
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-[12.5px] text-slate-400 leading-relaxed">
           <p>{FOOTER_NOTE}</p>
-          <p className="mt-1">© {new Date().getFullYear()} Conexão Free</p>
+          <p className="mt-1">© {new Date().getFullYear()} EiFreela</p>
         </div>
       </footer>
     </div>

@@ -8,9 +8,9 @@ export function AudioMessageBubble({ src, duration, mine }) {
 
   const toggle = () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !src) return;
     if (playing) audio.pause();
-    else audio.play();
+    else audio.play().catch(() => {});
   };
 
   const handleTimeUpdate = () => {
@@ -31,6 +31,7 @@ export function AudioMessageBubble({ src, duration, mine }) {
         type="button"
         onClick={toggle}
         className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${mine ? "bg-white/20" : "bg-emerald-50 text-emerald-600"}`}
+        disabled={!src}
         aria-label={playing ? "Pausar áudio" : "Reproduzir áudio"}
       >
         {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
@@ -46,7 +47,8 @@ export function AudioMessageBubble({ src, duration, mine }) {
       <span className="text-[11px] font-medium tabular-nums shrink-0">{formatTime(duration || 0)}</span>
       <audio
         ref={audioRef}
-        src={src}
+        src={src || undefined}
+        preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => {

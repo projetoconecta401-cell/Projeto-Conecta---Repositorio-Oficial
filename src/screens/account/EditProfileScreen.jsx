@@ -1,95 +1,66 @@
-import { Mail, User, MapPin, Check, Camera, Building2, ImagePlus, Phone } from "lucide-react";
+import { Mail, User, Phone, IdCard, Lock, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { Screen, TopBar, Field, PrimaryButton } from "../../components/ui.jsx";
-import { SKILL_OPTIONS } from "../auth/MiniResume.jsx";
+import { Campo, Field, PrimaryButton, Screen, TopBar } from "../../components/ui.jsx";
+import { FotoPerfil, SeletorAreas } from "../../components/CamposPerfil.jsx";
+import { atualizarPerfil, enviarAvatar } from "../../lib/perfis.js";
+import { cpfOculto, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/validacao.js";
 
-export function EditProfileScreen({ mode, profile, onSave, onBack }) {
-  const isCompany = mode === "contratar";
-  const [name, setName] = useState(profile.name || "");
-  const [email, setEmail] = useState(profile.email || "");
-  const [phone, setPhone] = useState(profile.phone || "");
-  const [city, setCity] = useState(profile.city || "");
-  const [bio, setBio] = useState(profile.bio || "");
-  const [hasPhoto, setHasPhoto] = useState(profile.hasPhoto || false);
-  const [skills, setSkills] = useState(profile.competencies || []);
+/* Edita somente os campos do perfil (nome, telefone, áreas e foto). CPF e e-mail não mudam. */
+export function EditProfileScreen({ profile, onSaved, onBack }) {
+  const [nome, setNome] = useState(profile.nome || "");
+  const [telefone, setTelefone] = useState(mascaraTelefone(profile.telefone || ""));
+  const [areas, setAreas] = useState(profile.areas || []);
+  const [foto, setFoto] = useState(null);
+  const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
+  const [erroGeral, setErroGeral] = useState("");
 
-  const toggleSkill = (s) => setSkills((arr) => (arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]));
-
-  const handleSave = () => {
-    onSave({ name, email, phone, city, bio, hasPhoto, competencies: skills });
-    onBack();
+  const salvar = async () => {
+    const er = validarPerfil({ nome, telefone, areas }, { exigirSenha: false, exigirEmail: false });
+    setErros(er);
+    setErroGeral("");
+    if (Object.keys(er).length) return;
+    setSalvando(true);
+    try {
+      await atualizarPerfil(profile.id, { nome: nome.trim().replace(/\s+/g, " "), telefone: soDigitos(telefone), areas });
+      if (foto) await enviarAvatar(profile.id, foto);
+      await onSaved();
+    } catch (err) {
+      setErroGeral(err.message);
+      setSalvando(false);
+    }
   };
 
   return (
     <Screen>
-      <TopBar title="Editar Perfil" onBack={onBack} />
-      <div className="flex-1 px-6 py-6 space-y-4">
-        <p className="text-[12.5px] text-slate-500 leading-relaxed">
-          {isCompany
-            ? "Essas informações aparecem para os profissionais quando visualizam sua empresa."
-            : "Essas informações aparecem para contratantes quando visualizam seu perfil."}
+      <TopBar title="Editar perfil" onBack={onBack} />
+      <div className="flex-1 w-full max-w-md mx-auto px-6 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4">
+        <p className="text-[12.5px] text-slate-500 leading-relaxed">Nome, foto e áreas aparecem para quem vê seu perfil.</p>
+        <FotoPerfil blob={foto} urlAtual={profile.avatar_url} nome={nome} onChange={setFoto} />
+        <Campo label="Nome completo" erro={erros.nome}>
+          <Field icon={User} value={nome} onChange={(e) => setNome(e.target.value)} invalid={!!erros.nome} />
+        </Campo>
+        <Campo label="Telefone / WhatsApp" erro={erros.telefone}>
+          <Field icon={Phone} type="tel" inputMode="tel" value={telefone} onChange={(e) => setTelefone(mascaraTelefone(e.target.value))} invalid={!!erros.telefone} />
+        </Campo>
+        <SeletorAreas valor={areas} erro={erros.areas} onChange={setAreas} />
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
+          <Campo label="E-mail" ajuda="Não pode ser alterado.">
+            <Field icon={Mail} value={profile.email} disabled className="bg-slate-50 text-slate-500" />
+          </Campo>
+          <Campo label="CPF" ajuda="Não pode ser alterado.">
+            <Field icon={IdCard} value={cpfOculto(profile.cpf)} disabled className="bg-slate-50 text-slate-500" />
+          </Campo>
+        </div>
+        <p className="text-[11.5px] text-slate-400 flex items-start gap-1.5">
+          <Lock size={13} className="shrink-0 mt-px" /> Para trocar a senha, use "Esqueci minha senha" na tela de login.
         </p>
-
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setHasPhoto(true)}
-            className={`relative w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed transition ${
-              hasPhoto ? "border-emerald-300 bg-emerald-50" : "border-slate-300 bg-slate-50"
-            }`}
-          >
-            {hasPhoto ? (
-              isCompany ? <Building2 size={28} className="text-emerald-500" /> : <Check size={26} className="text-emerald-500" />
-            ) : (
-              <div className="flex flex-col items-center gap-1 text-slate-400">
-                <ImagePlus size={22} />
-                <span className="text-[10px] font-medium">{isCompany ? "Logo da empresa" : "Foto de perfil"}</span>
-              </div>
-            )}
-            <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center border-2 border-white">
-              <Camera size={13} />
-            </span>
-          </button>
-        </div>
-
-        <Field icon={isCompany ? Building2 : User} placeholder={isCompany ? "Nome da empresa" : "Nome completo"} value={name} onChange={(e) => setName(e.target.value)} />
-        <Field icon={Mail} type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Field icon={Phone} type="tel" placeholder="Número de celular" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <Field icon={MapPin} placeholder="Cidade" value={city} onChange={(e) => setCity(e.target.value)} />
-
-        <div>
-          <p className="text-[12.5px] font-bold text-slate-600 mb-1.5">{isCompany ? "Sobre a empresa" : "Sobre você"}</p>
-          <textarea
-            rows={3}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder={isCompany ? "Conte um pouco sobre o negócio..." : "Conte um pouco sobre sua experiência..."}
-            className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-[14px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-          />
-        </div>
-
-        {!isCompany && (
-          <div>
-            <p className="text-[12.5px] font-bold text-slate-600 mb-2">Principais competências</p>
-            <div className="flex flex-wrap gap-2">
-              {SKILL_OPTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => toggleSkill(s)}
-                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border-2 transition ${
-                    skills.includes(s) ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500"
-                  }`}
-                >
-                  {skills.includes(s) && <Check size={11} className="inline mr-1 -mt-0.5" />}
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+        {erroGeral && (
+          <p role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {erroGeral}
+          </p>
         )}
-
-        <PrimaryButton className="mt-2" onClick={handleSave}>Salvar alterações</PrimaryButton>
+        <PrimaryButton disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar alterações"}</PrimaryButton>
       </div>
     </Screen>
   );

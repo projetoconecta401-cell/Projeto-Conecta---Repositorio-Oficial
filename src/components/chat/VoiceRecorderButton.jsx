@@ -1,7 +1,16 @@
 import { Square, Mic } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
-export function VoiceRecorderButton({ onRecorded }) {
+/* Grava áudio pelo microfone. onRecorded(blob, duracaoSegundos). Limite: 5 minutos. */
+const LIMITE = 300;
+
+function tipoSuportado() {
+  if (typeof MediaRecorder === "undefined") return "";
+  const opcoes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  return opcoes.find((t) => MediaRecorder.isTypeSupported?.(t)) ?? "";
+}
+
+export function VoiceRecorderButton({ onRecorded, disabled }) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
@@ -19,6 +28,12 @@ export function VoiceRecorderButton({ onRecorded }) {
     []
   );
 
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    clearInterval(timerRef.current);
+    setRecording(false);
+  };
+
   const startRecording = async () => {
     setError("");
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -28,33 +43,33 @@ export function VoiceRecorderButton({ onRecorded }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
+      const mimeType = tipoSuportado();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
+        const tipo = (recorder.mimeType || mimeType || "audio/webm").split(";")[0];
+        const blob = new Blob(chunksRef.current, { type: tipo });
         const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
-        onRecorded(url, duration);
         streamRef.current?.getTracks().forEach((t) => t.stop());
+        if (blob.size > 0) onRecorded(blob, duration);
       };
       mediaRecorderRef.current = recorder;
       startTimeRef.current = Date.now();
       recorder.start();
       setSeconds(0);
       setRecording(true);
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      timerRef.current = setInterval(() => {
+        setSeconds((s) => {
+          if (s + 1 >= LIMITE) stopRecording();
+          return s + 1;
+        });
+      }, 1000);
     } catch {
       setError("Não foi possível acessar o microfone. Verifique as permissões do navegador.");
     }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    clearInterval(timerRef.current);
-    setRecording(false);
   };
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -76,15 +91,14 @@ export function VoiceRecorderButton({ onRecorded }) {
       <button
         type="button"
         onClick={startRecording}
-        className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+        disabled={disabled}
+        className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition disabled:opacity-40"
         aria-label="Gravar áudio"
       >
         <Mic size={18} />
       </button>
       {error && (
-        <p className="absolute bottom-full mb-1 right-0 w-48 text-[10.5px] text-red-500 bg-white border border-red-200 rounded-lg p-1.5 shadow z-20">
-          {error}
-        </p>
+        <p className="absolute bottom-full mb-1 right-0 w-52 text-[11px] text-red-500 bg-white border border-red-200 rounded-lg p-1.5 shadow z-20">{error}</p>
       )}
     </div>
   );

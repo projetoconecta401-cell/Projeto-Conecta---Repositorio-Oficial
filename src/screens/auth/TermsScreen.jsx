@@ -1,55 +1,29 @@
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Screen, TopBar, PrimaryButton } from "../../components/ui.jsx";
 
-export function TermsScreen({ onFinish, onBack }) {
-  const [accepted, setAccepted] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  // onFinish cria a conta (Supabase Auth) — pode demorar ou falhar (ex.: e-mail já usado).
-  const handleFinish = async () => {
-    if (!accepted || saving) return;
-    setError("");
-    setSaving(true);
-    try {
-      await onFinish();
-    } catch (err) {
-      setError(err?.message || "Não foi possível concluir o cadastro.");
-      setSaving(false);
-    }
-  };
+/* Termos de Uso e Política de Privacidade (somente leitura; o aceite fica no cadastro). */
+export function TermsScreen({ onBack }) {
   return (
     <Screen>
       <TopBar title="Termos e Privacidade" onBack={onBack} />
-      <div className="flex-1 px-6 py-6 flex flex-col">
-        <div className="flex-1 overflow-y-auto max-h-72 p-4 rounded-xl bg-white border border-slate-200 text-[12.5px] text-slate-600 leading-relaxed">
-          <p className="font-bold text-slate-800 mb-1.5">Termos de Uso</p>
-          <p className="mb-3">
-            Ao utilizar a Conexão Free você concorda com as regras de intermediação entre contratantes e prestadores de
-            serviço em todo o Brasil, incluindo verificação de identidade, avaliações mútuas e uso responsável
-            do chat interno.
-          </p>
-          <p className="font-bold text-slate-800 mb-1.5">Política de Privacidade (LGPD)</p>
+      <div className="flex-1 w-full max-w-md mx-auto px-6 py-6 text-[13px] text-slate-600 leading-relaxed space-y-4">
+        <section>
+          <h2 className="font-bold text-slate-800 mb-1.5">Termos de Uso</h2>
           <p>
-            Seus dados pessoais, documentos e dados bancários são tratados conforme a Lei Geral de Proteção de Dados
-            (Lei nº 13.709/2018), utilizados exclusivamente para validação de identidade e pagamento de diárias, e
-            nunca compartilhados com terceiros sem seu consentimento. Você pode solicitar a exclusão definitiva dos
-            seus dados a qualquer momento nas Configurações da Conta.
+            O EiFreela aproxima quem precisa contratar uma diária ou serviço de profissionais disponíveis. Contratantes e
+            profissionais combinam valores, horários e local diretamente pelo chat do app e se avaliam mutuamente ao fim de
+            cada diária. Use o chat com respeito e não publique endereços exatos nas vagas.
           </p>
-        </div>
-        <label className="flex items-start gap-2.5 mt-4">
-          <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1 w-4 h-4 accent-emerald-600" />
-          <span className="text-[12.5px] text-slate-600">Li e aceito os Termos de Uso e a Política de Privacidade, conforme a LGPD.</span>
-        </label>
-        {error && (
-          <p role="alert" className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold flex items-start gap-2">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {error}
+        </section>
+        <section>
+          <h2 className="font-bold text-slate-800 mb-1.5">Política de Privacidade (LGPD)</h2>
+          <p>
+            Guardamos somente os dados do seu cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp,
+            foto e áreas de atuação. CPF, e-mail, nascimento e telefone ficam visíveis apenas para você. O EiFreela não
+            pede nem armazena dados bancários. As vagas mostram só a região aproximada. Você pode excluir sua conta e
+            todos os seus dados a qualquer momento em Perfil → Excluir conta (Lei nº 13.709/2018).
           </p>
-        )}
-        <PrimaryButton className="mt-6" disabled={!accepted || saving} onClick={handleFinish}>
-          {saving ? "Criando sua conta…" : "Concluir cadastro"}
-        </PrimaryButton>
+        </section>
+        <PrimaryButton onClick={onBack}>Entendi</PrimaryButton>
       </div>
     </Screen>
   );

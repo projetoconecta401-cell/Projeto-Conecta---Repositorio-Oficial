@@ -1,91 +1,242 @@
-import { Send, Smile } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Send, Smile, AlertTriangle, ChevronRight, ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AudioMessageBubble } from "../../components/chat/AudioMessageBubble.jsx";
 import { EmojiPickerPopover } from "../../components/chat/EmojiPickerPopover.jsx";
 import { VoiceRecorderButton } from "../../components/chat/VoiceRecorderButton.jsx";
-import { Screen, TopBar } from "../../components/ui.jsx";
+import { Avatar, Carregando, Pill, toneDoStatus } from "../../components/ui.jsx";
+import { enviarAudio, enviarTexto, listarMensagens, marcarLido, obterConversa, prepararMensagem } from "../../lib/conversas.js";
+import { supabase } from "../../lib/supabase.js";
+import { reais } from "../../lib/vagas.js";
 
-export function ConversationChatScreen({ conversation, onBack, onSend }) {
+const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const dia = (iso) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+
+/*
+ * Chat entre contratante e profissional (item 6): texto, emoji e áudio, em tempo real.
+ * A tela ocupa a altura do aparelho: as mensagens rolam por dentro e o campo de texto
+ * fica sempre visível embaixo.
+ */
+export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRead, onOpenJob, onOpenProfile, onAccept }) {
+  const [conversa, setConversa] = useState(undefined);
+  const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const endRef = useRef(null);
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation.messages.length]);
 
-  const handleSendClick = () => {
-    const value = text.trim();
-    if (!value) return;
+  const job = conversa?.vaga_id ? jobs.find((j) => j.id === conversa.vaga_id) : null;
+
+  const carregar = useCallback(async () => {
     try {
-      onSend(conversation.id, value);
-      setText("");
+      const c = await obterConversa(conversaId, userId);
+      setConversa(c);
+      if (c) setMessages(await listarMensagens(conversaId));
+      marcarLido(conversaId);
+      onRead?.();
     } catch (err) {
-      /* nunca deixa o envio quebrar a tela inteira do chat */
+      setError(err.message);
+      setConversa(null);
+    }
+  }, [conversaId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    carregar();
+    const canal = supabase
+      .channel(`chat-${conversaId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_mensagens", filter: `conversa_id=eq.${conversaId}` }, async ({ new: m }) => {
+        const pronta = await prepararMensagem(m);
+        setMessages((l) => (l.some((x) => x.id === pronta.id) ? l : [...l, pronta]));
+        marcarLido(conversaId);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(canal);
+  }, [carregar, conversaId]);
+
+  useLayoutEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [messages.length]);
+
+  const adicionar = (m) => setMessages((l) => (l.some((x) => x.id === m.id) ? l : [...l, m]));
+
+  const handleSend = async () => {
+    const value = text.trim();
+    if (!value || sending) return;
+    setSending(true);
+    setError("");
+    setText("");
+    try {
+      adicionar(await enviarTexto(conversaId, value));
+    } catch (err) {
+      setText(value);
+      setError(err.message);
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleAudioRecorded = (audioUrl, duration) => {
-    onSend(conversation.id, { audioUrl, duration });
+  const handleAudio = async (blob, duracao) => {
+    setSending(true);
+    setError("");
+    try {
+      adicionar(await enviarAudio(conversaId, blob, duracao));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
   };
 
+  if (conversa === undefined) {
+    return (
+      <div className="min-h-[100dvh] bg-slate-50">
+        <Carregando />
+      </div>
+    );
+  }
+
+  const outro = conversa?.outro;
+  const souDono = job?.isOwner;
+  const outroEhCandidato = souDono && job && conversa.freelancer_id === outro?.id;
+  let diaAnterior = "";
+
   return (
-    <Screen>
-      <TopBar
-        title={conversation.name}
-        onBack={onBack}
-        right={
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold flex items-center justify-center text-[11px]">
-            {conversation.avatar}
-          </div>
-        }
-      />
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {conversation.messages.length === 0 ? (
-          <p className="text-center text-[12px] text-slate-400 mt-6">Envie a primeira mensagem para {conversation.name}.</p>
+    <div className="h-[100dvh] flex flex-col bg-slate-50">
+      {/* Cabeçalho */}
+      <div className="flex items-center gap-3 px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] bg-white border-b border-slate-100 shrink-0">
+        <button onClick={onBack} aria-label="Voltar" className="p-2 rounded-full hover:bg-slate-100 text-slate-600 shrink-0">
+          <ArrowLeft size={20} />
+        </button>
+        {outro ? (
+          <button onClick={() => onOpenProfile(outro.id)} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+            <Avatar url={outro.avatar_url} nome={outro.nome} size={38} />
+            <span className="min-w-0">
+              <span className="block font-bold text-slate-800 text-[15px] truncate">{outro.nome}</span>
+              <span className="block text-[11.5px] text-slate-400 truncate">{job ? "Conversa sobre a vaga" : "Conversa direta"}</span>
+            </span>
+          </button>
         ) : (
-          conversation.messages.map((m, i) => (
-            <div key={m.id || i} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
-              {m.type === "audio" ? (
-                <AudioMessageBubble src={m.audioUrl} duration={m.duration} mine={m.from === "me"} />
-              ) : (
-                <div className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-[13.5px] break-words ${m.from === "me" ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-slate-100 text-slate-700 rounded-bl-sm"}`}>
-                  {m.text}
-                </div>
+          <p className="font-bold text-slate-800">Conversa</p>
+        )}
+      </div>
+
+      {!conversa ? (
+        <div className="flex-1 flex items-center justify-center px-8 text-center text-[13px] text-slate-500">
+          {error || "Conversa não encontrada."}
+        </div>
+      ) : (
+        <>
+          {/* Vaga da conversa */}
+          {job && (
+            <div className="px-3 pt-3 shrink-0">
+              <button onClick={() => onOpenJob(job)} className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 text-left min-w-0">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold text-slate-800 text-[13.5px] truncate">{job.title}</span>
+                  <span className="flex items-center gap-2 mt-1 min-w-0">
+                    <Pill tone={toneDoStatus(job.status)}>{job.status}</Pill>
+                    <span className="text-[12px] font-bold text-emerald-700 shrink-0">{reais(job.value)}</span>
+                    <span className="text-[11.5px] text-slate-400 truncate">{job.dateLabel}</span>
+                  </span>
+                </span>
+                <ChevronRight size={16} className="text-slate-300 shrink-0" />
+              </button>
+              {outroEhCandidato && !job.contratadoId && ["Disponível", "Em Negociação"].includes(job.status) && (
+                <button
+                  onClick={() => onAccept(job, outro.id)}
+                  className="w-full mt-2 py-2.5 rounded-xl bg-emerald-600 text-white text-[13px] font-bold"
+                >
+                  Aceitar {outro.nome.split(" ")[0]} para esta vaga
+                </button>
               )}
             </div>
-          ))
-        )}
-        <div ref={endRef} />
-      </div>
-      <div className="px-4 pb-4 pt-2 flex items-center gap-2 border-t border-slate-100">
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowEmoji((v) => !v)}
-            className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
-            aria-label="Inserir emoji"
-          >
-            <Smile size={18} />
-          </button>
-          {showEmoji && (
-            <EmojiPickerPopover
-              onSelect={(emoji) => setText((t) => t + emoji)}
-              onClose={() => setShowEmoji(false)}
-            />
           )}
-        </div>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSendClick()}
-          placeholder="Escreva uma mensagem..."
-          className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 bg-white text-[13.5px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-        />
-        <VoiceRecorderButton onRecorded={handleAudioRecorded} />
-        <button onClick={() => handleSendClick()} className="p-3 rounded-xl bg-emerald-600 text-white shrink-0">
-          <Send size={17} />
-        </button>
-      </div>
-    </Screen>
+
+          {/* Mensagens (rolam por dentro) */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-2" aria-live="polite">
+            {messages.length === 0 && (
+              <p className="text-center text-[12.5px] text-slate-400 mt-6 px-6">
+                Diga olá e combine os detalhes. O endereço exato só deve ser passado aqui, depois de fechar a diária.
+              </p>
+            )}
+            {messages.map((m) => {
+              const d = dia(m.criado_em);
+              const mostrarDia = d !== diaAnterior;
+              diaAnterior = d;
+              const mine = m.autor_id === userId;
+              return (
+                <div key={m.id}>
+                  {mostrarDia && (
+                    <p className="text-center my-3">
+                      <span className="px-3 py-1 rounded-full bg-slate-200/70 text-slate-500 text-[11px] font-semibold">{d}</span>
+                    </p>
+                  )}
+                  <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    {m.tipo === "audio" ? (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <AudioMessageBubble src={m.audioUrl} duration={m.duracao_seg} mine={mine} />
+                        <span className="text-[10px] text-slate-400 px-1">{hora(m.criado_em)}</span>
+                      </div>
+                    ) : (
+                      <div
+                        className={`max-w-[78%] px-3.5 py-2 rounded-2xl text-[14px] break-words whitespace-pre-wrap ${
+                          mine ? "bg-emerald-600 text-white rounded-br-sm" : "bg-white border border-slate-100 text-slate-700 rounded-bl-sm"
+                        }`}
+                      >
+                        {m.texto}
+                        <span className={`block text-right text-[10px] mt-0.5 ${mine ? "text-emerald-100" : "text-slate-400"}`}>{hora(m.criado_em)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={endRef} />
+          </div>
+
+          {error && (
+            <p role="alert" className="mx-4 mb-1 text-[11.5px] text-red-500 font-semibold flex items-center gap-1.5 shrink-0">
+              <AlertTriangle size={12} className="shrink-0" /> {error}
+            </p>
+          )}
+
+          {/* Campo de mensagem */}
+          <div className="px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-end gap-2 border-t border-slate-100 bg-white shrink-0">
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowEmoji((v) => !v)}
+                className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                aria-label="Inserir emoji"
+              >
+                <Smile size={18} />
+              </button>
+              {showEmoji && <EmojiPickerPopover onSelect={(emoji) => setText((t) => t + emoji)} onClose={() => setShowEmoji(false)} />}
+            </div>
+            <textarea
+              rows={1}
+              value={text}
+              maxLength={2000}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Escreva uma mensagem…"
+              aria-label="Mensagem"
+              className="flex-1 min-w-0 max-h-32 px-4 py-3 rounded-xl border border-slate-200 bg-white text-[16px] resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+            {text.trim() ? (
+              <button onClick={handleSend} disabled={sending} aria-label="Enviar" className="p-3 rounded-xl bg-emerald-600 text-white shrink-0 disabled:opacity-50">
+                <Send size={17} />
+              </button>
+            ) : (
+              <VoiceRecorderButton onRecorded={handleAudio} disabled={sending} />
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

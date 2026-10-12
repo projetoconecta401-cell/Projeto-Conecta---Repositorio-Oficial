@@ -1,79 +1,101 @@
-import { MapPin, Star, MessageSquare, History } from "lucide-react";
-import { Screen, TopBar, PrimaryButton } from "../../components/ui.jsx";
+import { MessageSquare, Star, History, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Avatar, Carregando, EmptyState, Estrelas, PrimaryButton, Screen, TopBar } from "../../components/ui.jsx";
+import { perfilPublico } from "../../lib/perfis.js";
+import { timeAgo } from "../../lib/time.js";
 
-/* ------------------------------------------------------------------ */
-/*  MÓDULO EXTRA — PERFIL DO PROFISSIONAL E CHAT DIRETO                */
-/* ------------------------------------------------------------------ */
+/* Perfil público: nome, foto, áreas e avaliações recebidas (sem dados pessoais). */
+export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage }) {
+  const [p, setP] = useState(undefined);
 
-export function ProfessionalProfileScreen({ professional: p, onBack, onMessage }) {
-  const avgFromHistory = p.history.length
-    ? (p.history.reduce((sum, h) => sum + h.rating, 0) / p.history.length).toFixed(1)
-    : p.rating;
+  useEffect(() => {
+    perfilPublico(profId).then(setP).catch(() => setP(null));
+  }, [profId]);
+
+  if (p === undefined)
+    return (
+      <Screen>
+        <TopBar title="Perfil" onBack={onBack} />
+        <Carregando />
+      </Screen>
+    );
+  if (!p)
+    return (
+      <Screen>
+        <TopBar title="Perfil" onBack={onBack} />
+        <EmptyState icon={AlertTriangle} title="Perfil não encontrado" />
+      </Screen>
+    );
+
   return (
     <Screen>
-      <TopBar title="Perfil do profissional" onBack={onBack} />
-      <div className="flex-1 px-5 py-6 space-y-6">
-        {/* Cabeçalho do perfil */}
+      <TopBar title="Perfil" onBack={onBack} />
+      <div className="flex-1 w-full max-w-2xl mx-auto px-5 py-6 space-y-6">
         <div className="flex flex-col items-center text-center">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold flex items-center justify-center text-2xl shadow-md">
-            {p.avatar}
+          <Avatar url={p.avatar_url} nome={p.nome} size={88} />
+          <h2 className="font-extrabold text-slate-800 text-[18px] mt-3 break-words">{p.nome}</h2>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {p.nota ? (
+              <>
+                <Star size={16} className="text-amber-400" fill="currentColor" />
+                <span className="font-bold text-slate-800 text-[15px]">{p.nota.media.toFixed(1)}</span>
+                <span className="text-[12px] text-slate-400">· {p.nota.total} avaliaç{p.nota.total === 1 ? "ão" : "ões"}</span>
+              </>
+            ) : (
+              <span className="text-[12.5px] text-slate-400">Ainda sem avaliações</span>
+            )}
           </div>
-          <h2 className="font-extrabold text-slate-800 text-[17px] mt-3 break-words">{p.name}</h2>
-          <p className="text-[12.5px] text-slate-500 mt-0.5 flex items-center gap-1">
-            <MapPin size={12} className="shrink-0" /> {p.city}, {p.state}
+          <p className="text-[11.5px] text-slate-400 mt-1">
+            No EiFreela desde {new Date(p.criado_em).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
           </p>
-          <div className="flex items-center gap-1.5 mt-2">
-            <Star size={16} className="text-teal-500" fill="currentColor" />
-            <span className="font-bold text-slate-800 text-[15px]">{avgFromHistory}</span>
-            <span className="text-[12px] text-slate-400">· {p.history.length} serviços avaliados</span>
-          </div>
         </div>
 
-        {/* Competências */}
         <div>
-          <p className="text-[12.5px] font-bold text-slate-600 mb-2">Principais competências</p>
+          <p className="text-[12.5px] font-bold text-slate-600 mb-2">Áreas de atuação</p>
           <div className="flex flex-wrap gap-2">
-            {p.skills.split("·").map((s, i) => (
-              <span key={i} className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[12px] font-semibold">
-                {s.trim()}
-              </span>
+            {p.areas.map((a) => (
+              <span key={a} className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[12px] font-semibold">{a}</span>
             ))}
           </div>
         </div>
 
-        {/* Bio */}
-        <div>
-          <p className="text-[12.5px] font-bold text-slate-600 mb-2">Sobre</p>
-          <p className="text-[13px] text-slate-600 leading-relaxed break-words">{p.bio}</p>
-        </div>
-
-        {/* Histórico de serviços */}
         <div>
           <p className="text-[12.5px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
-            <History size={14} /> Histórico de diárias realizadas
+            <History size={14} /> Avaliações recebidas
           </p>
-          <div className="space-y-2.5">
-            {p.history.map((h, i) => (
-              <div key={i} className="p-3.5 rounded-xl bg-white border border-slate-100">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-slate-800 text-[13.5px] leading-snug break-words min-w-0">{h.title}</p>
-                  <div className="flex items-center gap-1 shrink-0 text-teal-500 font-bold text-[13px]">
-                    <Star size={13} fill="currentColor" /> {h.rating}.0
+          {p.avaliacoes.length === 0 ? (
+            <p className="text-[12.5px] text-slate-400">As avaliações aparecem depois que uma diária é concluída.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {p.avaliacoes.map((a) => (
+                <div key={a.id} className="p-3.5 rounded-xl bg-white border border-slate-100 space-y-1.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Avatar url={a.autor?.avatar_url} nome={a.autor?.nome} size={32} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-slate-800 truncate">{a.autor?.nome ?? "Usuário"}</span>
+                      <span className="block text-[11px] text-slate-400 truncate">
+                        {a.vagas?.titulo ?? "Diária"} · {timeAgo(new Date(a.criado_em))}
+                      </span>
+                    </span>
+                    <Estrelas valor={a.nota} />
                   </div>
+                  {a.comentario && <p className="text-[13px] text-slate-600 break-words">{a.comentario}</p>}
                 </div>
-                <p className="text-[11.5px] text-slate-500 mt-1 truncate">{h.contractor} · {h.date}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Botão fixo de mensagem */}
-      <div className="px-5 py-4 border-t border-slate-100 bg-white">
-        <PrimaryButton onClick={() => onMessage(p)}>
-          <span className="flex items-center justify-center gap-2"><MessageSquare size={16} /> Enviar mensagem</span>
-        </PrimaryButton>
-      </div>
+      {p.id !== userId && (
+        <div className="sticky bottom-0 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100 bg-white">
+          <div className="w-full max-w-2xl mx-auto">
+            <PrimaryButton onClick={() => onMessage(p)}>
+              <span className="flex items-center justify-center gap-2"><MessageSquare size={16} /> Enviar mensagem</span>
+            </PrimaryButton>
+          </div>
+        </div>
+      )}
     </Screen>
   );
 }

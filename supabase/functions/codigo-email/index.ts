@@ -1,24 +1,26 @@
-// Conexão Free — códigos de 6 dígitos por e-mail (cadastro e recuperação de senha).
+// EiFreela — códigos de 6 dígitos por e-mail (cadastro e recuperação de senha).
 //
 // Ações (POST, corpo JSON):
-//   { acao: "enviar",    email, finalidade: "cadastro" | "senha" }
+//   { acao: "enviar",    email, finalidade: "cadastro" | "senha", cpf? }
 //   { acao: "verificar", email, finalidade, codigo }           (confere sem consumir)
 //   { acao: "redefinir", email, codigo, senha }                (recuperação de senha)
 //
+// No cadastro, o código só é pedido DEPOIS que a pessoa preencheu todos os dados
+// (o app envia o CPF junto, para avisar antes se ele já está em uso).
+//
 // Envio pelo Gmail (smtp.gmail.com:465, TLS) com os secrets SMTP_USERNAME e SMTP_PASSWORD
-// (senha de app do Google) — configurados no painel: Edge Functions → Secrets.
+// (senha de app do Google) — Edge Functions → Secrets no painel do Supabase.
 // Proteções: código guardado só como hash, validade de 10 min, 5 tentativas,
-// 1 envio por minuto e 5 por hora por e-mail; na recuperação de senha a resposta é sempre
-// genérica (não revela se a conta existe).
+// 1 envio por minuto e 5 por hora por e-mail; na recuperação de senha a resposta é
+// sempre genérica (não revela se a conta existe).
 import { withSupabase } from "npm:@supabase/server@1.9.0";
 import nodemailer from "npm:nodemailer@10.0.14";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SENHA = /^(?=.*[A-Za-zÀ-ÿ])(?=.*\d)(?=.*[^A-Za-zÀ-ÿ0-9\s]).{8,72}$/;
 const VALIDADE_MIN = 10;
 const MAX_TENTATIVAS = 5;
 
-// Lido a cada requisição (secrets salvos depois do deploy passam a valer na hora).
-// A senha de app do Google vem em blocos com espaços ("abcd efgh ..."): removidos aqui.
 function smtpConfig() {
   const user = (Deno.env.get("SMTP_USERNAME") ?? Deno.env.get("SMTP_USER") ?? "").trim();
   const pass = (Deno.env.get("SMTP_PASSWORD") ?? Deno.env.get("SMTP_PASS") ?? "").replace(/\s+/g, "");
@@ -42,7 +44,6 @@ function gerarCodigo() {
 // deno-lint-ignore no-explicit-any
 type Admin = any;
 
-/* Confere o código mais recente válido. Retorna { id } ou { erro }. */
 async function conferir(admin: Admin, email: string, finalidade: string, codigo: string) {
   const { data: linha } = await admin
     .from("codigos_email")
@@ -76,18 +77,18 @@ async function enviarEmail(para: string, codigo: string, finalidade: string) {
   const titulo = finalidade === "senha" ? "Recuperação de senha" : "Confirmação de e-mail";
   const motivo = finalidade === "senha" ? "redefinir sua senha" : "confirmar seu e-mail e concluir o cadastro";
   await transport.sendMail({
-    from: `Conexão Free <${smtp.user}>`,
+    from: `EiFreela <${smtp.user}>`,
     to: para,
-    subject: `Seu código Conexão Free: ${codigo}`,
+    subject: `Seu código EiFreela: ${codigo}`,
     text:
       `${titulo}\n\nUse o código ${codigo} para ${motivo}.\nEle vale por ${VALIDADE_MIN} minutos.\n\n` +
-      `Se você não pediu este código, ignore este e-mail.\n\nConexão Free`,
-    html: `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;color:#1e293b">
-      <h2 style="color:#047857;margin-bottom:4px">Conexão Free</h2>
-      <p style="margin-top:0;color:#64748b">${titulo}</p>
+      `Se você não pediu este código, ignore este e-mail.\n\nEiFreela`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;color:#1c1917">
+      <h2 style="color:#ea580c;margin-bottom:4px">EiFreela</h2>
+      <p style="margin-top:0;color:#78716c">${titulo}</p>
       <p>Use o código abaixo para ${motivo}:</p>
-      <p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#ecfdf5;color:#065f46;padding:16px;text-align:center;border-radius:12px">${codigo}</p>
-      <p style="color:#64748b;font-size:13px">O código vale por ${VALIDADE_MIN} minutos. Se você não pediu este código, ignore este e-mail.</p>
+      <p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#fff7ed;color:#9a3412;padding:16px;text-align:center;border-radius:12px">${codigo}</p>
+      <p style="color:#78716c;font-size:13px">O código vale por ${VALIDADE_MIN} minutos. Se você não pediu este código, ignore este e-mail.</p>
     </div>`,
   });
 }
@@ -127,6 +128,14 @@ export default {
       if (finalidade === "cadastro" && contaId) return erro("Já existe uma conta com este e-mail. Faça login.", 409);
       if (finalidade === "senha" && !contaId) return resposta({ ok: true }); // resposta genérica
 
+      if (finalidade === "cadastro") {
+        const cpf = String(body.cpf ?? "").replace(/\D/g, "");
+        if (cpf.length === 11) {
+          const { data: cpfUsado } = await admin.from("profiles").select("id").eq("cpf", cpf).maybeSingle();
+          if (cpfUsado) return erro("Este CPF já está cadastrado. Faça login.", 409);
+        }
+      }
+
       const codigo = gerarCodigo();
       const { data: linha, error } = await admin.from("codigos_email").insert({
         email,
@@ -162,7 +171,9 @@ export default {
       const codigo = String(body.codigo ?? "").replace(/\D/g, "");
       const senha = String(body.senha ?? "");
       if (codigo.length !== 6) return erro("O código tem 6 dígitos.");
-      if (senha.length < 6 || senha.length > 72) return erro("A senha deve ter de 6 a 72 caracteres.");
+      if (!SENHA.test(senha)) {
+        return erro("A senha precisa de 8+ caracteres, com letra, número e caractere especial (ex.: @ # $ !).");
+      }
       const r = await conferir(admin, email, "senha", codigo);
       if (r.erro) return erro(r.erro);
       const { data: contaId } = await admin.rpc("conta_por_email", { p_email: email });
