@@ -1,6 +1,16 @@
-node_modules
-dist
+# Dependências e build
+node_modules/
+dist/
+
+# Configurações locais (podem conter dados da máquina)
+.claude/
 .env
-.env.local
+.env.*
+!.env.example
+
+# Sistema / editores
 .DS_Store
-.vercel
+Thumbs.db
+*.log
+.vscode/
+.idea/
