@@ -8,6 +8,7 @@ import { novoId } from "./identidade.js";
  * - Conversa direta: a partir do perfil de um profissional ("Enviar mensagem").
  * - Texto e ÁUDIO: o áudio vai para o bucket privado "chat-audios" e só os dois
  *   participantes conseguem ouvir (link assinado, válido por 1 hora).
+ * - "Visualizada" (✓✓): cada lado grava quando leu a conversa (marcar_conversa_lida).
  * O banco só entrega a cada conta as conversas de que ela participa.
  */
 
@@ -22,12 +23,36 @@ const lidoEm = (id) => {
     return 0;
   }
 };
+/** Marca a conversa como lida: no aparelho e no banco (a outra pessoa vê "Visualizada"). */
 export function marcarLido(id) {
   try {
     localStorage.setItem(chaveLido(id), String(Date.now()));
   } catch {
     /* armazenamento indisponível */
   }
+  return supabase.rpc("marcar_conversa_lida", { p_conversa: id }).then(() => {}, () => {});
+}
+
+/* Quando cada lado leu a conversa (colunas novas; se ainda não existirem, segue sem elas). */
+const COLS_LIDO = "id, contratante_id, freelancer_id, lido_contratante_em, lido_freelancer_em";
+export const leituras = (c, meuId) => {
+  const souContratante = c.contratante_id === meuId;
+  return {
+    meuLidoEm: (souContratante ? c.lido_contratante_em : c.lido_freelancer_em) ?? null,
+    outroLidoEm: (souContratante ? c.lido_freelancer_em : c.lido_contratante_em) ?? null,
+  };
+};
+async function buscarLeituras(ids) {
+  if (!ids.length) return {};
+  const { data, error } = await supabase.from("conversas").select(COLS_LIDO).in("id", ids);
+  if (error) return {};
+  return Object.fromEntries(data.map((c) => [c.id, c]));
+}
+
+/** "Visto por último" de um perfil (coluna nova; sem ela, null). */
+export async function vistoEmDe(perfilId) {
+  const { data, error } = await supabase.from("profiles").select("visto_em").eq("id", perfilId).maybeSingle();
+  return error ? null : data?.visto_em ?? null;
 }
 
 const previa = (m) => (!m ? "" : m.tipo === "audio" ? "🎤 Mensagem de voz" : m.texto);
@@ -43,7 +68,7 @@ export async function listarConversas(meuId) {
   if (!conversas.length) return [];
 
   const outroDe = (c) => (c.contratante_id === meuId ? c.freelancer_id : c.contratante_id);
-  const [perfis, { data: msgs }] = await Promise.all([
+  const [perfis, { data: msgs }, lidos] = await Promise.all([
     perfisPorId(conversas.map(outroDe)),
     supabase
       .from("chat_mensagens")
@@ -51,10 +76,14 @@ export async function listarConversas(meuId) {
       .in("conversa_id", conversas.map((c) => c.id))
       .order("criado_em", { ascending: false })
       .limit(500),
+    buscarLeituras(conversas.map((c) => c.id)),
   ]);
 
   return conversas.map((c) => {
     const ultima = (msgs ?? []).find((m) => m.conversa_id === c.id);
+    const { meuLidoEm, outroLidoEm } = lidos[c.id] ? leituras(lidos[c.id], meuId) : {};
+    const lidoAte = Math.max(lidoEm(c.id), meuLidoEm ? new Date(meuLidoEm).getTime() : 0);
+    const ultimaMinha = !!ultima && ultima.autor_id === meuId;
     const outro = perfis[outroDe(c)] ?? { id: outroDe(c), nome: "Usuário", avatar_url: null };
     return {
       id: c.id,
@@ -65,7 +94,10 @@ export async function listarConversas(meuId) {
       name: outro.nome,
       lastMessage: previa(ultima) || (c.vaga_id ? "Candidatura enviada" : "Conversa iniciada"),
       lastTime: new Date(ultima?.criado_em ?? c.atualizado_em),
-      unread: ultima && ultima.autor_id !== meuId && new Date(ultima.criado_em).getTime() > lidoEm(c.id) ? 1 : 0,
+      unread: ultima && !ultimaMinha && new Date(ultima.criado_em).getTime() > lidoAte ? 1 : 0,
+      // Minha última mensagem: "enviada" ou "visualizada" pela outra pessoa.
+      ultimaMinha,
+      ultimaVista: ultimaMinha && !!outroLidoEm && new Date(outroLidoEm) >= new Date(ultima.criado_em),
     };
   });
 }
@@ -80,8 +112,13 @@ export async function obterConversa(id, meuId) {
   if (error) throw new Error(mensagemDeErro(error, "Não foi possível abrir a conversa."));
   if (!c) return null;
   const outroId = c.contratante_id === meuId ? c.freelancer_id : c.contratante_id;
-  const perfis = await perfisPorId([outroId]);
-  return { ...c, outro: perfis[outroId] ?? { id: outroId, nome: "Usuário", avatar_url: null } };
+  const [perfis, lidos, vistoEm] = await Promise.all([perfisPorId([outroId]), buscarLeituras([c.id]), vistoEmDe(outroId)]);
+  const outro = perfis[outroId] ?? { id: outroId, nome: "Usuário", avatar_url: null };
+  return {
+    ...c,
+    outro: { ...outro, visto_em: vistoEm },
+    outroLidoEm: lidos[c.id] ? leituras(lidos[c.id], meuId).outroLidoEm : null,
+  };
 }
 
 /** "Tenho interesse": abre a conversa da vaga (candidatura) e manda a 1ª mensagem. */

@@ -1,10 +1,11 @@
-import { Send, Smile, AlertTriangle, ChevronRight, ArrowLeft } from "lucide-react";
+import { Send, Smile, AlertTriangle, ChevronRight, ArrowLeft, Check, CheckCheck } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AudioMessageBubble } from "../../components/chat/AudioMessageBubble.jsx";
 import { EmojiPickerPopover } from "../../components/chat/EmojiPickerPopover.jsx";
 import { VoiceRecorderButton } from "../../components/chat/VoiceRecorderButton.jsx";
 import { Avatar, Carregando, Pill, toneDoStatus } from "../../components/ui.jsx";
-import { enviarAudio, enviarTexto, listarMensagens, marcarLido, obterConversa, prepararMensagem } from "../../lib/conversas.js";
+import { enviarAudio, enviarTexto, leituras, listarMensagens, marcarLido, obterConversa, prepararMensagem } from "../../lib/conversas.js";
+import { textoVistoEm, useOnline } from "../../lib/presenca.js";
 import { supabase } from "../../lib/supabase.js";
 import { reais } from "../../lib/vagas.js";
 
@@ -15,6 +16,8 @@ const dia = (iso) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit",
  * Chat entre contratante e profissional (item 6): texto, emoji e áudio, em tempo real.
  * A tela ocupa a altura do aparelho: as mensagens rolam por dentro e o campo de texto
  * fica sempre visível embaixo.
+ * Mostra se a outra pessoa está online (ou quando foi vista) e, nas minhas mensagens,
+ * ✓ enviada / ✓✓ visualizada.
  */
 export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRead, onOpenJob, onOpenProfile, onAccept }) {
   const [conversa, setConversa] = useState(undefined);
@@ -23,7 +26,10 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
   const [showEmoji, setShowEmoji] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [outroLidoEm, setOutroLidoEm] = useState(null);
   const endRef = useRef(null);
+  const onlineAgora = useOnline();
+  const visivel = () => document.visibilityState === "visible";
 
   const job = conversa?.vaga_id ? jobs.find((j) => j.id === conversa.vaga_id) : null;
 
@@ -31,6 +37,7 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
     try {
       const c = await obterConversa(conversaId, userId);
       setConversa(c);
+      setOutroLidoEm(c?.outroLidoEm ?? null);
       if (c) setMessages(await listarMensagens(conversaId));
       marcarLido(conversaId);
       onRead?.();
@@ -47,11 +54,21 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_mensagens", filter: `conversa_id=eq.${conversaId}` }, async ({ new: m }) => {
         const pronta = await prepararMensagem(m);
         setMessages((l) => (l.some((x) => x.id === pronta.id) ? l : [...l, pronta]));
-        marcarLido(conversaId);
+        if (m.autor_id !== userId && visivel()) marcarLido(conversaId);
+      })
+      // A outra pessoa abriu a conversa: minhas mensagens viram "visualizadas".
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversas", filter: `id=eq.${conversaId}` }, ({ new: c }) => {
+        const { outroLidoEm: lido } = leituras(c, userId);
+        if (lido) setOutroLidoEm(lido);
       })
       .subscribe();
-    return () => supabase.removeChannel(canal);
-  }, [carregar, conversaId]);
+    const aoVoltar = () => visivel() && marcarLido(conversaId);
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      document.removeEventListener("visibilitychange", aoVoltar);
+      supabase.removeChannel(canal);
+    };
+  }, [carregar, conversaId, userId]);
 
   useLayoutEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -98,6 +115,10 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
   const outro = conversa?.outro;
   const souDono = job?.isOwner;
   const outroEhCandidato = souDono && job && conversa.freelancer_id === outro?.id;
+  const outroOnline = !!outro && onlineAgora.has(outro.id);
+  const statusOutro = outroOnline ? "Online" : textoVistoEm(outro?.visto_em);
+  const vista = (m) => !!outroLidoEm && new Date(outroLidoEm) >= new Date(m.criado_em);
+  const ultimaMinha = [...messages].reverse().find((m) => m.autor_id === userId);
   let diaAnterior = "";
 
   return (
@@ -109,10 +130,15 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
         </button>
         {outro ? (
           <button onClick={() => onOpenProfile(outro.id)} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
-            <Avatar url={outro.avatar_url} nome={outro.nome} size={38} />
+            <span className="relative shrink-0">
+              <Avatar url={outro.avatar_url} nome={outro.nome} size={38} />
+              {outroOnline && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" aria-hidden="true" />}
+            </span>
             <span className="min-w-0">
               <span className="block font-bold text-slate-800 text-[15px] truncate">{outro.nome}</span>
-              <span className="block text-[11.5px] text-slate-400 truncate">{job ? "Conversa sobre a vaga" : "Conversa direta"}</span>
+              <span className={`block text-[11.5px] truncate ${outroOnline ? "text-emerald-600 font-semibold" : "text-slate-400"}`}>
+                {statusOutro ?? (job ? "Conversa sobre a vaga" : "Conversa direta")}
+              </span>
             </span>
           </button>
         ) : (
@@ -172,9 +198,11 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
                   )}
                   <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                     {m.tipo === "audio" ? (
-                      <div className="flex flex-col items-end gap-0.5">
+                      <div className={`flex flex-col gap-0.5 ${mine ? "items-end" : "items-start"}`}>
                         <AudioMessageBubble src={m.audioUrl} duration={m.duracao_seg} mine={mine} />
-                        <span className="text-[10px] text-slate-400 px-1">{hora(m.criado_em)}</span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-400 px-1">
+                          {hora(m.criado_em)} {mine && <Tique vista={vista(m)} claro={false} />}
+                        </span>
                       </div>
                     ) : (
                       <div
@@ -183,10 +211,15 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
                         }`}
                       >
                         {m.texto}
-                        <span className={`block text-right text-[10px] mt-0.5 ${mine ? "text-emerald-100" : "text-slate-400"}`}>{hora(m.criado_em)}</span>
+                        <span className={`flex items-center justify-end gap-1 text-[10px] mt-0.5 ${mine ? "text-emerald-100" : "text-slate-400"}`}>
+                          {hora(m.criado_em)} {mine && <Tique vista={vista(m)} claro />}
+                        </span>
                       </div>
                     )}
                   </div>
+                  {m === ultimaMinha && vista(m) && (
+                    <p className="text-right text-[10.5px] text-slate-400 mt-0.5 pr-1">Visualizada às {hora(outroLidoEm)}</p>
+                  )}
                 </div>
               );
             })}
@@ -240,3 +273,11 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
     </div>
   );
 }
+
+/* ✓ enviada · ✓✓ visualizada (azul). */
+const Tique = ({ vista, claro }) =>
+  vista ? (
+    <CheckCheck size={14} className={claro ? "text-sky-200" : "text-sky-500"} aria-label="Visualizada" />
+  ) : (
+    <Check size={14} className={claro ? "text-emerald-100" : "text-slate-400"} aria-label="Enviada" />
+  );

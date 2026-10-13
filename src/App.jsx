@@ -4,6 +4,7 @@ import { Toast } from "./components/ui.jsx";
 import { sair, excluirConta } from "./lib/auth.js";
 import { enviarAvatarPendente } from "./lib/perfis.js";
 import { listarConversas, candidatar, abrirConversaDireta } from "./lib/conversas.js";
+import { iniciarPresenca } from "./lib/presenca.js";
 import { contarNaoLidas } from "./lib/notificacoes.js";
 import { vagasJaAvaliadas } from "./lib/avaliacoes.js";
 import { avisoDoSistema } from "./lib/push.js";
@@ -131,12 +132,20 @@ function App({ session, perfil, onPerfilAlterado }) {
       .catch(() => pushToast({ title: "Foto não enviada", body: "Tente de novo em Perfil → Editar perfil." }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // "Online agora" e "visto por último" (chat).
+  useEffect(() => iniciarPresenca(userId), [userId]);
+
   // Tempo real: vagas, notificações e mensagens.
   useEffect(() => {
     let espera;
+    let esperaConversas;
     const vagasDepois = () => {
       clearTimeout(espera);
       espera = setTimeout(recarregarVagas, 400);
+    };
+    const conversasDepois = () => {
+      clearTimeout(esperaConversas);
+      esperaConversas = setTimeout(recarregarConversas, 600);
     };
     const canal = supabase
       .channel(`app-${userId}`)
@@ -145,6 +154,8 @@ function App({ session, perfil, onPerfilAlterado }) {
         recarregarConversas();
         vagasDepois();
       })
+      // Leitura da conversa pela outra pessoa (✓✓ na lista do chat).
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversas" }, conversasDepois)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificacoes", filter: `usuario_id=eq.${userId}` }, ({ new: n }) => {
         setNaoLidas((x) => x + 1);
         pushToast({
@@ -166,6 +177,7 @@ function App({ session, perfil, onPerfilAlterado }) {
       .subscribe();
     return () => {
       clearTimeout(espera);
+      clearTimeout(esperaConversas);
       supabase.removeChannel(canal);
     };
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
