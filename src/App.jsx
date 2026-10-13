@@ -5,6 +5,9 @@ import { sair, excluirConta } from "./lib/auth.js";
 import { enviarAvatarPendente } from "./lib/perfis.js";
 import { listarConversas, candidatar, abrirConversaDireta } from "./lib/conversas.js";
 import { iniciarPresenca } from "./lib/presenca.js";
+import { carregarBloqueados } from "./lib/seguranca.js";
+import { useBloqueados } from "./components/Seguranca.jsx";
+import { BloqueadosScreen } from "./screens/account/BloqueadosScreen.jsx";
 import { contarNaoLidas } from "./lib/notificacoes.js";
 import { vagasJaAvaliadas } from "./lib/avaliacoes.js";
 import { avisoDoSistema } from "./lib/push.js";
@@ -58,6 +61,7 @@ function App({ session, perfil, onPerfilAlterado }) {
   const [naoLidas, setNaoLidas] = useState(0);
   const [avaliadas, setAvaliadas] = useState(new Set());
   const [toast, setToast] = useState(null);
+  const bloqueadosIds = useBloqueados();
   const [posicao, setPosicao] = useState(posicaoSalva);
   const [savedJobIds, setSavedJobIds] = useState(() => {
     try {
@@ -132,8 +136,11 @@ function App({ session, perfil, onPerfilAlterado }) {
       .catch(() => pushToast({ title: "Foto não enviada", body: "Tente de novo em Perfil → Editar perfil." }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // "Online agora" e "visto por último" (chat).
+  // "Online agora" e "visto por último" (chat) + pessoas que eu bloqueei.
   useEffect(() => iniciarPresenca(userId), [userId]);
+  useEffect(() => {
+    carregarBloqueados();
+  }, [userId]);
 
   // Tempo real: vagas, notificações e mensagens.
   useEffect(() => {
@@ -316,6 +323,9 @@ function App({ session, perfil, onPerfilAlterado }) {
 
   /* ------------------------------------------------------- telas -- */
   const jobById = (id) => jobs.find((j) => j.id === id);
+  // Vagas e conversas de quem eu bloqueei somem do mural, do mapa e do chat.
+  const jobsVisiveis = jobs.filter((j) => j.isOwner || j.isHired || !bloqueadosIds.has(j.ownerId));
+  const conversasVisiveis = conversations.filter((c) => !bloqueadosIds.has(c.outro?.id));
   const abrirVaga = (j) => go("jobDetail", { jobId: j.id });
   let content = null;
 
@@ -323,7 +333,7 @@ function App({ session, perfil, onPerfilAlterado }) {
     content = (
       <FeedScreen
         mode={modo}
-        jobs={jobs}
+        jobs={jobsVisiveis}
         loading={carregandoVagas}
         userId={userId}
         posicao={posicao}
@@ -363,10 +373,11 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenChat={(conversaId) => go("conversationChat", { conversaId })}
         onOpenProfile={(id) => go("professionalProfile", { profId: id })}
         onOfficialized={(j) => go("officialized", { jobId: j.id })}
+        onAviso={pushToast}
       />
     );
   } else if (screen === "map")
-    content = <MapScreen jobs={jobs} posicao={posicao} onPedirPosicao={handlePedirPosicao} onOpenJob={abrirVaga} />;
+    content = <MapScreen jobs={jobsVisiveis} posicao={posicao} onPedirPosicao={handlePedirPosicao} onOpenJob={abrirVaga} />;
   else if (screen === "agenda") content = <AgendaScreen jobs={jobs} onOpenJob={abrirVaga} />;
   else if (screen === "notifs")
     content = <NotificationsScreen userId={userId} onOpenJob={(id) => go("jobDetail", { jobId: id })} onChanged={recarregarAvisos} />;
@@ -380,6 +391,7 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenHistory={() => go("workHistory")}
         onOpenApplications={() => go("myApplications")}
         onOpenDiarias={() => go("myDiarias")}
+        onOpenBloqueados={() => go("bloqueados")}
         profile={profile}
         onEditProfile={() => go("editProfile")}
       />
@@ -425,11 +437,15 @@ function App({ session, perfil, onPerfilAlterado }) {
   else if (screen === "postJobSummary")
     content = <PostJobSummaryScreen jobs={jobs} userId={userId} onDone={() => go("feed")} />;
   else if (screen === "professionalProfile")
-    content = <ProfessionalProfileScreen profId={nav.profId} userId={userId} onBack={back} onMessage={handleMessageProfessional} />;
+    content = (
+      <ProfessionalProfileScreen profId={nav.profId} userId={userId} onBack={back} onMessage={handleMessageProfessional} onAviso={pushToast} />
+    );
+  else if (screen === "bloqueados")
+    content = <BloqueadosScreen onBack={back} onAviso={pushToast} />;
   else if (screen === "chatList")
     content = (
       <ChatListScreen
-        conversations={conversations}
+        conversations={conversasVisiveis}
         loading={carregandoConversas}
         onOpenConversation={(c) => go("conversationChat", { conversaId: c.id })}
       />
@@ -446,11 +462,12 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenJob={abrirVaga}
         onOpenProfile={(id) => go("professionalProfile", { profId: id })}
         onAccept={handleAccept}
+        onAviso={pushToast}
       />
     );
 
   const showNav = ABAS.includes(screen);
-  const unreadConversations = conversations.filter((c) => c.unread > 0).length;
+  const unreadConversations = conversasVisiveis.filter((c) => c.unread > 0).length;
 
   return (
     <div className={`w-full max-w-md md:max-w-3xl lg:max-w-5xl mx-auto min-h-[100dvh] bg-slate-50 font-sans relative ${showNav ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]" : ""}`}>

@@ -1,4 +1,4 @@
-import { MapPin, MessageCircle, AlertTriangle, CheckCircle2, ShieldCheck, Navigation, Star, Trash2, UserCheck, Users } from "lucide-react";
+import { MapPin, MessageCircle, AlertTriangle, CheckCircle2, ShieldCheck, Navigation, Star, Trash2, UserCheck, Users, Flag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApplicationStatusPill } from "../components/jobs/ApplicationStatusPill.jsx";
 import { CancelReasonModal } from "../components/jobs/CancelReasonModal.jsx";
@@ -7,7 +7,8 @@ import {
 } from "../components/ui.jsx";
 import { distanciaDaVaga, textoProximidade } from "../lib/geo.js";
 import { notasDosPerfis, perfisPorId } from "../lib/perfis.js";
-import { reais } from "../lib/vagas.js";
+import { contatoDaVaga, reais } from "../lib/vagas.js";
+import { BotaoCompartilharDiaria, DenunciarSheet } from "../components/Seguranca.jsx";
 import { soDigitos } from "../lib/validacao.js";
 import { timeAgo } from "../lib/time.js";
 
@@ -31,12 +32,22 @@ function LinhaPessoa({ perfil, nota, onOpen, children }) {
 
 export function JobDetail({
   job, loading, userId, posicao, jaAvaliei, onBack, onApply, onAccept, onCancelHire, onWithdraw, onCheckIn, onCheckOut, onComplete,
-  onDelete, onRate, onOpenChat, onOpenProfile, onOfficialized,
+  onDelete, onRate, onOpenChat, onOpenProfile, onOfficialized, onAviso,
 }) {
   const [perfis, setPerfis] = useState({});
   const [notas, setNotas] = useState({});
   const [modal, setModal] = useState(null); // "desistir" | "cancelar"
   const [ocupado, setOcupado] = useState(false);
+  const [denunciando, setDenunciando] = useState(false);
+  const [whatsapp, setWhatsapp] = useState(null);
+
+  // WhatsApp do contratante: o banco só libera para o profissional contratado.
+  const vagaId = job?.id;
+  const contratadoAqui = !!job?.isHired;
+  useEffect(() => {
+    setWhatsapp(null);
+    if (vagaId && contratadoAqui) contatoDaVaga(vagaId).then(setWhatsapp);
+  }, [vagaId, contratadoAqui]);
 
   const ids = job ? [job.ownerId, job.contratadoId, ...job.candidatos.map((c) => c.freelancerId)].filter(Boolean).join(",") : "";
   useEffect(() => {
@@ -66,9 +77,9 @@ export function JobDetail({
   const proximidade = textoProximidade(distanciaDaVaga(job, posicao));
   const aberta = ["Disponível", "Em Negociação"].includes(job.status);
   const contratado = job.contratadoId ? perfis[job.contratadoId] : null;
-  const zap = soDigitos(job.contractorPhone);
+  const zap = soDigitos(whatsapp);
   const whatsappLink =
-    !job.isOwner && zap.length >= 10
+    !job.isOwner && job.isHired && zap.length >= 10
       ? `https://wa.me/55${zap}?text=${encodeURIComponent(`Olá! Vi a vaga "${job.title}" no EiFreela e gostaria de conversar sobre ela.`)}`
       : null;
   const conversaDoContratado = job.candidatos.find((c) => c.freelancerId === job.contratadoId)?.conversaId;
@@ -211,6 +222,7 @@ export function JobDetail({
 
             {job.status === "Em Atendimento" && (
               <>
+                <BotaoCompartilharDiaria job={job} souDono outroNome={contratado?.nome} onAviso={onAviso} />
                 <GreenButton disabled={ocupado} onClick={() => fazer(() => onComplete(job))}>
                   <span className="flex items-center justify-center gap-2"><CheckCircle2 size={16} /> Marcar diária como concluída</span>
                 </GreenButton>
@@ -271,6 +283,7 @@ export function JobDetail({
                 <button onClick={() => onOfficialized(job)} className="w-full p-3 rounded-xl bg-emerald-50 text-emerald-700 text-[13px] font-bold">
                   🎉 Você foi selecionado! Ver detalhes da diária
                 </button>
+                <BotaoCompartilharDiaria job={job} souDono={false} outroNome={perfis[job.ownerId]?.nome} onAviso={onAviso} />
                 <PrimaryButton disabled={ocupado} onClick={() => fazer(() => onCheckIn(job))}>
                   <span className="flex items-center justify-center gap-2"><MapPin size={16} /> Fazer check-in</span>
                 </PrimaryButton>
@@ -302,9 +315,22 @@ export function JobDetail({
                   <span className="flex items-center justify-center gap-2"><Star size={16} /> Avaliar o contratante</span>
                 </PrimaryButton>
               ))}
+
+            <button onClick={() => setDenunciando(true)} className="w-full flex items-center justify-center gap-1.5 pt-3 text-[12.5px] text-slate-400 font-semibold">
+              <Flag size={13} /> Denunciar esta vaga
+            </button>
           </div>
         )}
       </div>
+
+      {denunciando && (
+        <DenunciarSheet
+          pessoa={perfis[job.ownerId] ?? { id: job.ownerId, nome: job.contractorName }}
+          vagaId={job.id}
+          onClose={() => setDenunciando(false)}
+          onAviso={onAviso}
+        />
+      )}
 
       {modal && (
         <CancelReasonModal

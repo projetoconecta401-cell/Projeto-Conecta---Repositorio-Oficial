@@ -10,6 +10,7 @@ import { PublishModal } from "../components/jobs/PublishModal.jsx";
 import { CardsEsqueleto, EmptyState, Screen } from "../components/ui.jsx";
 import { UserAvatarMenu } from "../components/UserAvatarMenu.jsx";
 import BotaoInstalar from "../components/BotaoInstalar.jsx";
+import { useBloqueados } from "../components/Seguranca.jsx";
 import { CATEGORIES } from "../data/catalogo.js";
 import { distanciaDaVaga } from "../lib/geo.js";
 import { listarProfissionais } from "../lib/perfis.js";
@@ -68,7 +69,8 @@ export function FeedScreen({
     .filter((j) => !termo || [j.title, j.category, j.neighborhood, j.city].some((t) => String(t).toLowerCase().includes(termo)));
   const myJobs = jobs.filter((j) => j.isOwner);
   const favoriteJobs = jobs.filter((j) => savedJobIds.includes(j.id));
-  const prosVisiveis = (pros ?? []).filter(
+  const bloqueados = useBloqueados();
+  const prosVisiveis = (pros ?? []).filter((p) => !bloqueados.has(p.id)).filter(
     (p) => (category === "all" || category === "minhas-areas" || p.areas.includes(category)) && (!termo || p.nome.toLowerCase().includes(termo))
   );
 

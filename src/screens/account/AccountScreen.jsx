@@ -1,11 +1,11 @@
-import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck } from "lucide-react";
+import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, FileText } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Field, Screen, TopBar } from "../../components/ui.jsx";
 import { CartaoPush } from "../../components/CartaoPush.jsx";
 import BotaoInstalar from "../../components/BotaoInstalar.jsx";
 import { cpfOculto, mascaraTelefone } from "../../lib/validacao.js";
 
-export function AccountScreen({ mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, profile, onEditProfile }) {
+export function AccountScreen({ mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, profile, onEditProfile }) {
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
 
@@ -99,6 +99,8 @@ export function AccountScreen({ mode, setMode, onDelete, onLogout, onOpenHistory
             { icon: Briefcase, label: "Minhas candidaturas", onClick: onOpenApplications },
             { icon: Calendar, label: "Minhas diárias", onClick: onOpenDiarias },
             { icon: History, label: "Histórico e avaliações", onClick: onOpenHistory },
+            { icon: Ban, label: "Pessoas bloqueadas", onClick: onOpenBloqueados },
+            { icon: FileText, label: "Termos e privacidade", onClick: () => window.open("/privacidade/", "_blank", "noopener") },
           ].map((it) => {
             const Icon = it.icon;
             return (

@@ -1,4 +1,4 @@
-import { Send, Smile, AlertTriangle, ChevronRight, ArrowLeft, Check, CheckCheck } from "lucide-react";
+import { Send, Smile, AlertTriangle, ChevronRight, ArrowLeft, Check, CheckCheck, EllipsisVertical, Ban, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AudioMessageBubble } from "../../components/chat/AudioMessageBubble.jsx";
 import { EmojiPickerPopover } from "../../components/chat/EmojiPickerPopover.jsx";
@@ -6,6 +6,8 @@ import { VoiceRecorderButton } from "../../components/chat/VoiceRecorderButton.j
 import { Avatar, Carregando, Pill, toneDoStatus } from "../../components/ui.jsx";
 import { enviarAudio, enviarTexto, leituras, listarMensagens, marcarLido, obterConversa, prepararMensagem } from "../../lib/conversas.js";
 import { textoVistoEm, useOnline } from "../../lib/presenca.js";
+import { dadoSensivel, pareceGolpe } from "../../lib/seguranca.js";
+import { AcoesPessoaSheet, AlertaGolpe, DicasSeguranca, useBloqueados } from "../../components/Seguranca.jsx";
 import { supabase } from "../../lib/supabase.js";
 import { reais } from "../../lib/vagas.js";
 
@@ -19,7 +21,7 @@ const dia = (iso) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit",
  * Mostra se a outra pessoa está online (ou quando foi vista) e, nas minhas mensagens,
  * ✓ enviada / ✓✓ visualizada.
  */
-export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRead, onOpenJob, onOpenProfile, onAccept }) {
+export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRead, onOpenJob, onOpenProfile, onAccept, onAviso }) {
   const [conversa, setConversa] = useState(undefined);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -29,6 +31,8 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
   const [outroLidoEm, setOutroLidoEm] = useState(null);
   const endRef = useRef(null);
   const onlineAgora = useOnline();
+  const bloqueados = useBloqueados();
+  const [menu, setMenu] = useState(false);
   const visivel = () => document.visibilityState === "visible";
 
   const job = conversa?.vaga_id ? jobs.find((j) => j.id === conversa.vaga_id) : null;
@@ -116,6 +120,7 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
   const souDono = job?.isOwner;
   const outroEhCandidato = souDono && job && conversa.freelancer_id === outro?.id;
   const outroOnline = !!outro && onlineAgora.has(outro.id);
+  const bloqueado = !!outro && bloqueados.has(outro.id);
   const statusOutro = outroOnline ? "Online" : textoVistoEm(outro?.visto_em);
   const vista = (m) => !!outroLidoEm && new Date(outroLidoEm) >= new Date(m.criado_em);
   const ultimaMinha = [...messages].reverse().find((m) => m.autor_id === userId);
@@ -142,9 +147,24 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
             </span>
           </button>
         ) : (
-          <p className="font-bold text-slate-800">Conversa</p>
+          <p className="font-bold text-slate-800 flex-1">Conversa</p>
+        )}
+        {outro && (
+          <button onClick={() => setMenu(true)} aria-label="Denunciar ou bloquear" className="p-2 rounded-full hover:bg-slate-100 text-slate-500 shrink-0">
+            <EllipsisVertical size={20} />
+          </button>
         )}
       </div>
+      {menu && outro && (
+        <AcoesPessoaSheet
+          pessoa={outro}
+          vagaId={conversa?.vaga_id ?? null}
+          conversaId={conversaId}
+          onClose={() => setMenu(false)}
+          onVerPerfil={() => onOpenProfile(outro.id)}
+          onAviso={onAviso}
+        />
+      )}
 
       {!conversa ? (
         <div className="flex-1 flex items-center justify-center px-8 text-center text-[13px] text-slate-500">
@@ -179,6 +199,7 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
 
           {/* Mensagens (rolam por dentro) */}
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-2" aria-live="polite">
+            <DicasSeguranca chave={conversaId} />
             {messages.length === 0 && (
               <p className="text-center text-[12.5px] text-slate-400 mt-6 px-6">
                 Diga olá e combine os detalhes. O endereço exato só deve ser passado aqui, depois de fechar a diária.
@@ -217,6 +238,7 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
                       </div>
                     )}
                   </div>
+                  {!mine && m.tipo !== "audio" && pareceGolpe(m.texto) && <AlertaGolpe />}
                   {m === ultimaMinha && vista(m) && (
                     <p className="text-right text-[10.5px] text-slate-400 mt-0.5 pr-1">Visualizada às {hora(outroLidoEm)}</p>
                   )}
@@ -232,7 +254,22 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
             </p>
           )}
 
-          {/* Campo de mensagem */}
+          {dadoSensivel(text) && !bloqueado && (
+            <p className="mx-4 mb-1 text-[11.5px] text-amber-700 font-semibold flex items-start gap-1.5 shrink-0">
+              <ShieldAlert size={13} className="shrink-0 mt-px" /> Evite enviar CPF, senhas, códigos ou número de cartão pelo chat.
+            </p>
+          )}
+
+          {/* Campo de mensagem (ou aviso de bloqueio) */}
+          {bloqueado ? (
+            <div className="px-4 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] border-t border-slate-100 bg-white shrink-0 flex items-center gap-3">
+              <Ban size={18} className="text-slate-400 shrink-0" />
+              <p className="flex-1 text-[13px] text-slate-500">Você bloqueou {outro.nome.split(" ")[0]}. Vocês não podem trocar mensagens.</p>
+              <button onClick={() => setMenu(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-[12.5px] font-bold shrink-0">
+                Desbloquear
+              </button>
+            </div>
+          ) : (
           <div className="px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-end gap-2 border-t border-slate-100 bg-white shrink-0">
             <div className="relative shrink-0">
               <button
@@ -268,6 +305,7 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
               <VoiceRecorderButton onRecorded={handleAudio} disabled={sending} />
             )}
           </div>
+          )}
         </>
       )}
     </div>

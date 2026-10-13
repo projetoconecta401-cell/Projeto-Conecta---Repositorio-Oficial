@@ -18,7 +18,7 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
     neighborhood: "",
     city: "",
     state: "RO",
-    phone: profile?.telefone ? mascaraTelefone(profile.telefone) : "",
+    phone: "",
     details: "",
     usarLocal: !!posicao,
   });
@@ -118,7 +118,7 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
           </span>
         </label>
 
-        <Campo label="WhatsApp para contato (opcional)" ajuda="Aparece só para quem estiver logado.">
+        <Campo label="WhatsApp para contato (opcional)" ajuda="Por segurança, aparece só para o profissional que você contratar.">
           <Field icon={Phone} type="tel" inputMode="tel" placeholder="(69) 99999-9999" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: mascaraTelefone(e.target.value) }))} />
         </Campo>
 

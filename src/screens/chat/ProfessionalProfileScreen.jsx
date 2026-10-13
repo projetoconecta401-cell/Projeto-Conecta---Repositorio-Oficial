@@ -1,12 +1,15 @@
-import { MessageSquare, Star, History, AlertTriangle } from "lucide-react";
+import { MessageSquare, Star, History, AlertTriangle, EllipsisVertical, Ban } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar, Carregando, EmptyState, Estrelas, PrimaryButton, Screen, TopBar } from "../../components/ui.jsx";
 import { perfilPublico } from "../../lib/perfis.js";
 import { timeAgo } from "../../lib/time.js";
+import { AcoesPessoaSheet, useBloqueados } from "../../components/Seguranca.jsx";
 
 /* Perfil público: nome, foto, áreas e avaliações recebidas (sem dados pessoais). */
-export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage }) {
+export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, onAviso }) {
   const [p, setP] = useState(undefined);
+  const [menu, setMenu] = useState(false);
+  const bloqueados = useBloqueados();
 
   useEffect(() => {
     perfilPublico(profId).then(setP).catch(() => setP(null));
@@ -27,9 +30,22 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage })
       </Screen>
     );
 
+  const outro = p.id !== userId;
+  const bloqueado = bloqueados.has(p.id);
+
   return (
     <Screen>
-      <TopBar title="Perfil" onBack={onBack} />
+      <TopBar
+        title="Perfil"
+        onBack={onBack}
+        right={
+          outro && (
+            <button onClick={() => setMenu(true)} aria-label="Denunciar ou bloquear" className="p-2 -mr-2 rounded-full hover:bg-slate-100 text-slate-500">
+              <EllipsisVertical size={20} />
+            </button>
+          )
+        }
+      />
       <div className="flex-1 w-full max-w-2xl mx-auto px-5 py-6 space-y-6">
         <div className="flex flex-col items-center text-center">
           <Avatar url={p.avatar_url} nome={p.nome} size={88} />
@@ -87,15 +103,22 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage })
         </div>
       </div>
 
-      {p.id !== userId && (
+      {outro && (
         <div className="sticky bottom-0 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100 bg-white">
           <div className="w-full max-w-2xl mx-auto">
-            <PrimaryButton onClick={() => onMessage(p)}>
-              <span className="flex items-center justify-center gap-2"><MessageSquare size={16} /> Enviar mensagem</span>
-            </PrimaryButton>
+            {bloqueado ? (
+              <button onClick={() => setMenu(true)} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-slate-100 text-slate-600 font-semibold text-[14px]">
+                <Ban size={16} /> Você bloqueou esta pessoa
+              </button>
+            ) : (
+              <PrimaryButton onClick={() => onMessage(p)}>
+                <span className="flex items-center justify-center gap-2"><MessageSquare size={16} /> Enviar mensagem</span>
+              </PrimaryButton>
+            )}
           </div>
         </div>
       )}
+      {menu && <AcoesPessoaSheet pessoa={p} onClose={() => setMenu(false)} onAviso={onAviso} />}
     </Screen>
   );
 }

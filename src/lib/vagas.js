@@ -6,13 +6,14 @@ import { PARECE_ENDERECO } from "./validacao.js";
  * apenas o que está no banco.
  * Privacidade (item 4): a vaga guarda só bairro, cidade, UF e coordenadas arredondadas
  * (~1 km). O endereço exato é combinado pelo chat, depois da contratação.
+ * O WhatsApp opcional fica em "vagas_contato": só o dono e o profissional contratado leem.
  * Ciclo da diária: Disponível → Em Negociação (alguém se candidatou) → Em Atendimento
  * (o dono aceitou um candidato) → check-in → check-out → Concluída (libera avaliações).
  */
 
 const TABELA = "vagas";
 const COLUNAS =
-  "id, criado_em, titulo, categoria, valor, data, horario, bairro, cidade, uf, status, usuario_id, contratante, detalhes, whatsapp, lat_aprox, lng_aprox, contratado_id, check_in_em, check_out_em";
+  "id, criado_em, titulo, categoria, valor, data, horario, bairro, cidade, uf, status, usuario_id, contratante, detalhes, lat_aprox, lng_aprox, contratado_id, check_in_em, check_out_em";
 
 export const hojeISO = () => {
   const d = new Date();
@@ -73,9 +74,9 @@ export function validarFormulario(form) {
       bairro,
       cidade,
       uf: form.state,
-      whatsapp,
       detalhes,
     },
+    whatsapp,
   };
 }
 
@@ -117,7 +118,6 @@ export function vagaParaJob(row, userId = null, extras = {}) {
     ownerId: row.usuario_id,
     contractor: isOwner ? "Você" : row.contratante || "Contratante",
     contractorName: row.contratante || "Contratante",
-    contractorPhone: row.whatsapp || null,
     details: row.detalhes || "",
     contratadoId: row.contratado_id,
     checkInAt: row.check_in_em,
@@ -178,7 +178,7 @@ export async function listarVagas(userId = null) {
 
 /* Publica a vaga. contratante: nome do perfil; posicao: { lat, lng } já arredondados (opcional). */
 export async function publicarVaga(form, userId, { contratante, posicao } = {}) {
-  const { dados, erro } = validarFormulario(form);
+  const { dados, whatsapp, erro } = validarFormulario(form);
   if (erro) throw new Error(erro);
   const { data, error } = await supabase
     .from(TABELA)
@@ -192,7 +192,14 @@ export async function publicarVaga(form, userId, { contratante, posicao } = {}) 
     .select(COLUNAS)
     .single();
   if (error) throw new Error(mensagemDeErro(error, "Não foi possível publicar a vaga."));
+  if (whatsapp) await supabase.from("vagas_contato").insert({ vaga_id: data.id, whatsapp }).then(() => {}, () => {});
   return vagaParaJob(data, userId);
+}
+
+/** WhatsApp da vaga: o banco só entrega ao dono e ao profissional contratado. */
+export async function contatoDaVaga(vagaId) {
+  const { data, error } = await supabase.from("vagas_contato").select("whatsapp").eq("vaga_id", vagaId).maybeSingle();
+  return error ? null : data?.whatsapp ?? null;
 }
 
 export async function excluirVaga(id) {
