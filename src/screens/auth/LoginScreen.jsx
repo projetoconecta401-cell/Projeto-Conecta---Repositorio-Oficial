@@ -1,9 +1,9 @@
-import { Mail, Lock, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, AlertTriangle, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Screen, Field, PrimaryButton } from "../../components/ui.jsx";
 import { entrarComProvedor } from "../../lib/auth.js";
 
-export function LoginScreen({ onLogin, goCadastro, goForgot }) {
+export function LoginScreen({ onLogin, goCadastro, goForgot, onBack }) {
   const [show, setShow] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +43,13 @@ export function LoginScreen({ onLogin, goCadastro, goForgot }) {
 
   return (
     <Screen>
+      {onBack && (
+        <div className="w-full max-w-md mx-auto px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+          <button onClick={onBack} className="flex items-center gap-1.5 px-2 py-2 -ml-2 rounded-full text-slate-500 text-[13px] font-semibold">
+            <ArrowLeft size={18} /> Conhecer o app
+          </button>
+        </div>
+      )}
       <div className="flex-1 flex flex-col justify-center w-full max-w-md mx-auto px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
         <div className="mb-10 text-center">
           <img src="/icons/icon-192.png" alt="" width="64" height="64" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-lg shadow-emerald-500/20" />

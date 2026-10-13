@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { entrar } from "../../lib/auth.js";
+import { BoasVindasScreen } from "./BoasVindasScreen.jsx";
 import { CadastroScreen } from "./CadastroScreen.jsx";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen.jsx";
 import { LoginScreen } from "./LoginScreen.jsx";
 import { TermsScreen } from "./TermsScreen.jsx";
 
-/* Telas de quem ainda não entrou: login, cadastro, recuperar senha e termos.
+/* Telas de quem ainda não entrou: boas-vindas (apresentação), login, cadastro, recuperar senha e termos.
    O botão "voltar" do celular volta para a tela anterior em vez de fechar o app. */
 export function AuthFlow() {
-  const [pilha, setPilha] = useState(["login"]);
+  const [pilha, setPilha] = useState(["inicio"]);
   const tela = pilha[pilha.length - 1];
 
   const ir = (t) => {
@@ -27,5 +28,8 @@ export function AuthFlow() {
   if (tela === "cadastro") return <CadastroScreen onBack={voltar} onOpenTerms={() => ir("termos")} />;
   if (tela === "esqueci") return <ForgotPasswordScreen onBack={voltar} />;
   if (tela === "termos") return <TermsScreen onBack={voltar} />;
-  return <LoginScreen onLogin={entrar} goCadastro={() => ir("cadastro")} goForgot={() => ir("esqueci")} />;
+  if (tela === "login") {
+    return <LoginScreen onLogin={entrar} goCadastro={() => ir("cadastro")} goForgot={() => ir("esqueci")} onBack={voltar} />;
+  }
+  return <BoasVindasScreen goCadastro={() => ir("cadastro")} goLogin={() => ir("login")} />;
 }

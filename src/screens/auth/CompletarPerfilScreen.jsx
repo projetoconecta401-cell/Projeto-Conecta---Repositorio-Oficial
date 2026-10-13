@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Cake, IdCard, Phone, User } from "lucide-react";
+import { AlertTriangle, Cake, IdCard, Phone, ShieldCheck, User } from "lucide-react";
 import { Campo, Field, PrimaryButton, Screen, SecondaryButton, TopBar } from "../../components/ui.jsx";
 import { FotoPerfil, SeletorAreas } from "../../components/CamposPerfil.jsx";
 import { sair } from "../../lib/auth.js";
@@ -17,6 +17,7 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [erroGeral, setErroGeral] = useState("");
+  const [aceite, setAceite] = useState(false);
   const fotoProvedor = typeof (meta.avatar_url || meta.picture) === "string" && (meta.avatar_url || meta.picture).startsWith("https://") ? meta.avatar_url || meta.picture : null;
 
   const muda = (campo, mascara) => (e) => {
@@ -41,6 +42,7 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
 
   const salvar = async () => {
     const er = validarPerfil(d, { exigirSenha: false, exigirEmail: false });
+    if (!aceite) er.aceite = "Para continuar, aceite os Termos de Uso e a Política de Privacidade.";
     setErros(er);
     setErroGeral("");
     if (Object.keys(er).length) return;
@@ -85,6 +87,35 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
           <Field icon={Phone} type="tel" inputMode="tel" placeholder="(69) 99999-9999" value={d.telefone} onChange={muda("telefone", mascaraTelefone)} invalid={!!erros.telefone} />
         </Campo>
         <SeletorAreas valor={d.areas} erro={erros.areas} onChange={(areas) => setD((x) => ({ ...x, areas }))} />
+
+        <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-[12.5px] text-emerald-900 leading-relaxed">
+          <ShieldCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+          <p>
+            <b>Como usamos seus dados:</b> nome, foto, áreas e avaliações aparecem para outros usuários. CPF, e-mail, nascimento e
+            telefone ficam visíveis só para você e servem para proteger sua conta e evitar cadastros duplicados. Não pedimos dados
+            bancários. Você pode excluir a conta quando quiser, em Perfil.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={aceite}
+              onChange={(e) => {
+                setAceite(e.target.checked);
+                if (erros.aceite) setErros((x) => ({ ...x, aceite: undefined }));
+              }}
+              className="mt-0.5 w-5 h-5 shrink-0 accent-emerald-600"
+            />
+            <span className="text-[12.5px] text-slate-600 leading-snug">
+              Tenho 18 anos ou mais e aceito os{" "}
+              <a href="/termos/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Termos de Uso</a> e a{" "}
+              <a href="/privacidade/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Política de Privacidade</a>.
+            </span>
+          </label>
+          {erros.aceite && <p className="text-[12px] text-red-500 font-semibold mt-1.5">{erros.aceite}</p>}
+        </div>
         {erroGeral && (
           <p role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold">{erroGeral}</p>
         )}
