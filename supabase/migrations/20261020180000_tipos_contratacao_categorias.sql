@@ -5,6 +5,8 @@
 --     com período, carga horária, regime, unidade do valor, nº de vagas e trabalho remoto.
 --  3) Vaga com várias posições: ao aceitar cada pessoa, o app cria uma "cópia" da vaga só
 --     para ela (contratar_candidato). Assim check-in, check-out e avaliação seguem iguais.
+--     quantidade NULL = "sem número fixo": o contratante aceita quantas pessoas quiser
+--     e encerra a vaga quando completar a equipe.
 
 -- ------------------------------------------------------------ 1) categorias --
 alter table public.vagas drop constraint if exists vagas_categoria_check;
@@ -38,8 +40,8 @@ alter table public.vagas
     check (regime in ('clt_temporario', 'prestacao_servico', 'a_combinar')),
   add column if not exists valor_unidade text not null default 'dia'
     check (valor_unidade in ('hora', 'dia', 'semana', 'mes', 'projeto')),
-  add column if not exists quantidade integer not null default 1
-    check (quantidade between 1 and 50),
+  add column if not exists quantidade integer default 1
+    check (quantidade is null or quantidade between 1 and 50),
   add column if not exists remoto boolean not null default false,
   add column if not exists vaga_origem_id uuid references public.vagas(id) on delete set null;
 
@@ -168,12 +170,13 @@ begin
   end if;
 
   -- Uma posição: contrata na própria vaga (fluxo de sempre).
-  if v.quantidade <= 1 then
+  if v.quantidade is not null and v.quantidade <= 1 then
     update public.vagas set contratado_id = p_freelancer, status = 'Em Atendimento' where id = p_vaga;
     return p_vaga;
   end if;
 
-  -- Várias posições: cria a vaga desta pessoa e diminui as posições abertas.
+  -- Várias posições (ou sem número fixo): cria a vaga desta pessoa e,
+  -- se houver número definido, diminui as posições abertas.
   insert into public.vagas (titulo, categoria, valor, data, horario, bairro, cidade, uf, contratante, detalhes,
                             usuario_id, lat_aprox, lng_aprox, tipo, data_fim, carga_horaria, regime,
                             valor_unidade, quantidade, remoto, vaga_origem_id, status)
@@ -188,7 +191,7 @@ begin
 
   update public.conversas set vaga_id = v_nova where vaga_id = p_vaga and freelancer_id = p_freelancer;
   update public.vagas set contratado_id = p_freelancer, status = 'Em Atendimento' where id = v_nova;
-  update public.vagas set quantidade = quantidade - 1 where id = p_vaga;
+  update public.vagas set quantidade = quantidade - 1 where id = p_vaga and quantidade is not null;
 
   return v_nova;
 end

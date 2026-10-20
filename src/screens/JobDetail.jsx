@@ -141,12 +141,12 @@ export function JobDetail({
           </div>
         </div>
 
-        {(job.tipo === "temporario" || job.quantidade > 1) && (
+        {(job.tipo === "temporario" || job.multi) && (
           <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 flex flex-col gap-1.5 text-[13px] text-sky-900">
             <p className="font-bold flex items-center gap-1.5"><CalendarRange size={15} /> {job.tipo === "temporario" ? "Contrato temporário" : "Mais de uma vaga"}</p>
             {job.cargaHoraria && <p><b>Carga horária:</b> {job.cargaHoraria}</p>}
             {job.tipo === "temporario" && job.regime && <p><b>Regime:</b> {regimeLabel(job.regime)}</p>}
-            {job.quantidade > 1 && <p><b>Vagas abertas:</b> {job.quantidade}</p>}
+            {job.multi && <p><b>Vagas abertas:</b> {job.livre ? "sem número fixo" : job.quantidade}</p>}
           </div>
         )}
 
@@ -262,7 +262,9 @@ export function JobDetail({
                 )}
                 {aberta && job.candidatos.length > 0 && (
                   <p className="text-[11.5px] text-slate-400 mt-2">
-                    {job.quantidade > 1 ? (
+                    {job.livre ? (
+                      <>Aceite quantas pessoas quiser. Cada uma ganha a própria vaga em <b>Minhas Vagas</b>. Quando completar a equipe, toque em <b>Encerrar vaga</b>.</>
+                    ) : job.quantidade > 1 ? (
                       <>Você pode aceitar até <b>{job.quantidade}</b> pessoas. Cada uma ganha a própria vaga em <b>Minhas Vagas</b>; as outras posições continuam no mural.</>
                     ) : (
                       <>Ao aceitar um candidato, a vaga passa para <b>Em Atendimento</b> e sai do mural.</>
@@ -295,7 +297,7 @@ export function JobDetail({
 
             {!job.contratadoId && (
               <button onClick={() => onDelete(job)} className="w-full py-3 rounded-xl bg-red-50 text-red-500 font-bold text-[13.5px] flex items-center justify-center gap-2">
-                <Trash2 size={16} /> Excluir vaga
+                <Trash2 size={16} /> {job.multi ? "Encerrar vaga" : "Excluir vaga"}
               </button>
             )}
           </div>

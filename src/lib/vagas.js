@@ -67,7 +67,8 @@ export function validarFormulario(form) {
   const cidade = form.city?.trim() ?? "";
   const whatsapp = form.phone?.trim() || null;
   const detalhes = form.details?.trim() || null;
-  const quantidade = Math.round(Number(form.quantidade || 1));
+  const livre = !!form.livre && tipo !== "freela";
+  const quantidade = livre ? null : Math.round(Number(form.quantidade || 1));
   const unidadesOk = { diaria: ["dia", "hora"], temporario: ["mes", "semana", "dia", "hora"], freela: ["projeto", "hora"] }[tipo];
   const valorUnidade = unidadesOk.includes(form.valorUnidade) ? form.valorUnidade : unidadesOk[0];
   const dataFim = tipo === "temporario" ? form.dataFimISO || null : null;
@@ -83,7 +84,7 @@ export function validarFormulario(form) {
   if (tipo === "temporario" && !dataFim) return { erro: "Escolha a data de término do contrato." };
   if (dataFim && dataFim < form.dateISO) return { erro: "A data de término precisa ser depois do início." };
   if (cargaHoraria && cargaHoraria.length > 80) return { erro: "A carga horária pode ter no máximo 80 caracteres." };
-  if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) return { erro: "O número de vagas deve ser entre 1 e 50." };
+  if (!livre && (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50)) return { erro: "O número de vagas deve ser entre 1 e 50." };
   if (bairro.length < 2) return { erro: "Informe o bairro ou região (sem rua e número)." };
   if (cidade.length < 2) return { erro: "Informe a cidade." };
   if (whatsapp && !/^[0-9()+ .-]{8,20}$/.test(whatsapp)) return { erro: "WhatsApp inválido. Use só números, espaços, ( ) e -." };
@@ -104,7 +105,7 @@ export function validarFormulario(form) {
     detalhes,
   };
   // Campos novos só vão quando fogem do padrão (assim funciona mesmo antes do banco ser atualizado).
-  if (tipo !== "diaria" || quantidade > 1 || valorUnidade !== "dia") {
+  if (tipo !== "diaria" || livre || quantidade > 1 || valorUnidade !== "dia") {
     Object.assign(dados, { tipo, data_fim: dataFim, carga_horaria: cargaHoraria, regime, valor_unidade: valorUnidade, quantidade, remoto });
   }
   return { dados, whatsapp };
@@ -151,6 +152,8 @@ export function vagaParaJob(row, userId = null, extras = {}) {
     cargaHoraria: row.carga_horaria ?? null,
     regime: row.regime ?? null,
     quantidade: row.quantidade ?? 1,
+    livre: row.quantidade === null, // sem número fixo de vagas
+    multi: row.quantidade === null || (row.quantidade ?? 1) > 1,
     remoto: !!row.remoto,
     origemId: row.vaga_origem_id ?? null,
     date: row.horario ? `${dataLabel} · ${row.horario}` : dataLabel,

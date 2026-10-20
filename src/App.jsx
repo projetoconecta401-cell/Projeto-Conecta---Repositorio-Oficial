@@ -260,7 +260,9 @@ function App({ session, perfil, onPerfilAlterado }) {
     executar(() => aceitarCandidato(job.id, freelancerId), {
       title: "Candidato aceito ✅",
       body:
-        job.quantidade > 1
+        job.livre
+          ? `O profissional foi avisado. "${job.title}" continua no mural até você encerrar.`
+          : job.quantidade > 1
           ? `O profissional foi avisado. Ainda ${job.quantidade - 1 === 1 ? "resta 1 vaga" : `restam ${job.quantidade - 1} vagas`} em "${job.title}".`
           : `"${job.title}" saiu do mural. O profissional foi avisado.`,
     });
@@ -300,8 +302,13 @@ function App({ session, perfil, onPerfilAlterado }) {
       pushToast({ title: "Não é possível excluir", body: "Esta vaga tem um profissional contratado. Cancele a contratação antes de excluir." });
       return;
     }
-    if (!window.confirm(`Excluir a vaga "${job.title}"? As conversas dela também serão apagadas.`)) return;
-    const ok = await executar(() => excluirVaga(job.id), { title: "Vaga excluída", body: "A vaga foi removida do mural." });
+    const pergunta = job.multi
+      ? `Encerrar a vaga "${job.title}"? Ela sai do mural. Quem você já aceitou continua com a própria vaga em Minhas Vagas; as conversas com quem não foi aceito serão apagadas.`
+      : `Excluir a vaga "${job.title}"? As conversas dela também serão apagadas.`;
+    if (!window.confirm(pergunta)) return;
+    const ok = await executar(() => excluirVaga(job.id), job.multi
+      ? { title: "Vaga encerrada", body: "A vaga saiu do mural. As contratações feitas continuam em Minhas Vagas." }
+      : { title: "Vaga excluída", body: "A vaga foi removida do mural." });
     if (ok && screen === "jobDetail") back();
   };
 

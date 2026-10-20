@@ -27,6 +27,7 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
     regime: "a_combinar",
     valorUnidade: "dia",
     quantidade: "1",
+    livre: false,
     remoto: false,
   });
   const tipo = form.tipo;
@@ -156,8 +157,16 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
         )}
 
         {tipo !== "freela" && (
-          <Campo label="Quantas pessoas você precisa?" ajuda="Cada pessoa aceita recebe a própria vaga; as outras continuam abertas.">
-            <input type="number" min={1} max={50} inputMode="numeric" value={form.quantidade} onChange={set("quantidade")} className={selectCls} />
+          <Campo label="Quantas pessoas você precisa?" ajuda="Você escolhe quem aceitar. Cada pessoa aceita recebe a própria vaga; as outras posições continuam abertas.">
+            {!form.livre && (
+              <input type="number" min={1} max={50} inputMode="numeric" value={form.quantidade} onChange={set("quantidade")} className={selectCls} />
+            )}
+            <label className="flex items-start gap-2.5 p-3 mt-2 rounded-xl border border-slate-200 bg-white">
+              <input type="checkbox" checked={!!form.livre} onChange={(e) => setForm((f) => ({ ...f, livre: e.target.checked }))} className="mt-0.5 w-5 h-5 shrink-0 accent-emerald-600" />
+              <span className="text-[13px] text-slate-600 leading-snug">
+                <b className="text-slate-800">Sem número fixo.</b> Vou aceitar quantas pessoas quiser e encerro a vaga quando completar a equipe.
+              </span>
+            </label>
           </Campo>
         )}
 

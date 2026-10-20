@@ -46,7 +46,7 @@ export function JobCard({ job, onOpen, saved = false, onToggleSave, posicao }) {
         <div className="flex items-center gap-1.5 flex-wrap">
           {job.tipo !== "diaria" && <Pill tone="blue">{job.tipoLabel}</Pill>}
           <Pill tone={toneDoStatus(job.status)}>{job.status}</Pill>
-          {job.quantidade > 1 && <Pill tone="orange">{job.quantidade} vagas</Pill>}
+          {job.multi && <Pill tone="orange">{job.livre ? "Várias vagas" : `${job.quantidade} vagas`}</Pill>}
           {job.remoto && <Pill tone="teal">Remoto</Pill>}
           {job.isOwner && <Pill tone="teal">Sua vaga</Pill>}
           {job.applicationStatus && <ApplicationStatusPill status={job.applicationStatus} />}

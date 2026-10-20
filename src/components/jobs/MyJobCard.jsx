@@ -9,10 +9,10 @@ export function MyJobCard({ job, onOpen, onDelete }) {
         <span className="text-[12px] font-bold text-slate-600 truncate min-w-0">{job.category}</span>
         <Pill tone={toneDoStatus(job.status)}>{job.status}</Pill>
       </div>
-      {(job.tipo !== "diaria" || job.quantidade > 1) && (
+      {(job.tipo !== "diaria" || job.multi) && (
         <div className="flex items-center gap-1.5 flex-wrap -mt-1">
           {job.tipo !== "diaria" && <Pill tone="blue">{job.tipoLabel}</Pill>}
-          {job.quantidade > 1 && <Pill tone="orange">{job.quantidade} vagas abertas</Pill>}
+          {job.multi && <Pill tone="orange">{job.livre ? "Vagas sem limite" : `${job.quantidade} vagas abertas`}</Pill>}
         </div>
       )}
       <h3 className="font-bold text-slate-800 text-[15px] leading-snug line-clamp-2 break-words">{job.title}</h3>
