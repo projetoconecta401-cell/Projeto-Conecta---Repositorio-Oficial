@@ -4,8 +4,9 @@ import { Avatar, Carregando, EmptyState, Estrelas, PrimaryButton, Screen, TopBar
 import { perfilPublico } from "../../lib/perfis.js";
 import { timeAgo } from "../../lib/time.js";
 import { AcoesPessoaSheet, useBloqueados } from "../../components/Seguranca.jsx";
+import { CurriculoView } from "../../components/Curriculo.jsx";
 
-/* Perfil público: nome, foto, áreas e avaliações recebidas (sem dados pessoais). */
+/* Perfil público: nome, foto, áreas, mini currículo e avaliações recebidas (sem dados pessoais). */
 export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, onAviso }) {
   const [p, setP] = useState(undefined);
   const [menu, setMenu] = useState(false);
@@ -74,6 +75,8 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, o
             ))}
           </div>
         </div>
+
+        <CurriculoView c={p} />
 
         <div>
           <p className="text-[12.5px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">

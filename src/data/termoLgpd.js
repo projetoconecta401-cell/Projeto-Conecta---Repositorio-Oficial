@@ -5,7 +5,7 @@
  * todos os usuários terão de aceitar de novo.
  */
 
-export const VERSAO_TERMO = "1.0-2026-10-20";
+export const VERSAO_TERMO = "1.1-2026-10-20";
 export const DATA_TERMO = "20 de outubro de 2026";
 export const LINK_LEI = "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm";
 export const CONTATO = "projetoconecta401@gmail.com";
@@ -29,6 +29,7 @@ export const SECOES_TERMO = [
     titulo: "2. Dados que tratamos",
     itens: [
       "Cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp, foto de perfil e áreas de atuação.",
+      "Mini currículo (opcional): apresentação, escolaridade, curso, instituição, situação (cursando ou concluído), experiências e cursos que você decidir informar.",
       "Login com Google ou Facebook (se você escolher): nome, e-mail e foto pública fornecidos pelo provedor. Não recebemos sua senha.",
       "Uso do app: vagas, candidaturas, mensagens de texto e de áudio, avaliações, denúncias, bloqueios, notificações e horário do último acesso.",
       "Localização aproximada (opcional): arredondada para cerca de 1 km, só para mostrar a distância das vagas. A posição exata nunca é gravada.",
@@ -47,7 +48,7 @@ export const SECOES_TERMO = [
   {
     titulo: "4. Com quem compartilhamos (art. 9º, V, e art. 39)",
     itens: [
-      "Outros usuários veem apenas seu nome, foto, áreas de atuação e avaliações. CPF, e-mail, nascimento e telefone ficam visíveis só para você.",
+      "Outros usuários veem apenas seu nome, foto, áreas de atuação, avaliações e o mini currículo, se você o preencher. CPF, e-mail, nascimento e telefone ficam visíveis só para você.",
       "O WhatsApp informado numa vaga aparece apenas para o profissional contratado.",
       "Operadores que guardam e processam os dados em nosso nome: Supabase (banco de dados, arquivos e login) e Vercel (hospedagem do site).",
       "Google e Facebook, somente se você escolher entrar por eles.",

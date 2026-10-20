@@ -1,9 +1,10 @@
-import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound } from "lucide-react";
+import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound, FileUser } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Field, Screen, TopBar } from "../../components/ui.jsx";
 import { CartaoPush } from "../../components/CartaoPush.jsx";
 import BotaoInstalar from "../../components/BotaoInstalar.jsx";
 import { cpfOculto, mascaraTelefone } from "../../lib/validacao.js";
+import { lerCurriculo, temCurriculo } from "../../lib/curriculo.js";
 
 export function AccountScreen({
   mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade,
@@ -93,6 +94,23 @@ export function AccountScreen({
           </div>
           <p className="text-[11.5px] text-slate-400 mt-1.5">Alterne quando quiser, sem precisar de novo cadastro.</p>
         </div>
+
+        {mode === "trabalhar" && Object.prototype.hasOwnProperty.call(profile, "sobre") && (
+          <button type="button" onClick={onEditProfile} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-left">
+            <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0"><FileUser size={20} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold text-emerald-900 text-[14px]">
+                {temCurriculo(lerCurriculo(profile)) ? "Mini currículo" : "Monte seu mini currículo"}
+              </span>
+              <span className="block text-[12px] text-emerald-800/80 leading-snug">
+                {temCurriculo(lerCurriculo(profile))
+                  ? "Atualize sua apresentação, formação e experiências."
+                  : "Conte quem você é, sua formação e experiências. Contratantes escolhem melhor quem se apresenta."}
+              </span>
+            </span>
+            <ChevronRight size={16} className="text-emerald-400 shrink-0" />
+          </button>
+        )}
 
         <CartaoPush />
         <BotaoInstalar />

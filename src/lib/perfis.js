@@ -4,10 +4,20 @@ import { mensagemDeErro, supabase } from "./supabase.js";
  * Perfis (tabela profiles). Campos: nome, CPF, e-mail, nascimento, telefone/WhatsApp,
  * avatar e áreas de atuação. Nenhum dado bancário.
  * CPF, e-mail, nascimento e telefone só o dono lê (função meu_perfil); para os outros
- * usuários o banco libera apenas nome, foto e áreas.
+ * usuários o banco libera apenas nome, foto, áreas e o mini currículo (opcional).
  */
 
 const PUBLICO = "id, nome, avatar_url, areas, criado_em";
+const CURRICULO = "id, sobre, formacao, experiencias, cursos";
+
+/* Mini currículo de vários perfis (colunas novas: se o banco ainda não tiver, segue sem). */
+async function curriculos(ids, colunas = CURRICULO) {
+  const unicos = [...new Set(ids.filter(Boolean))];
+  if (!unicos.length) return {};
+  const { data, error } = await supabase.from("profiles").select(colunas).in("id", unicos);
+  if (error) return {};
+  return Object.fromEntries(data.map((c) => [c.id, c]));
+}
 
 export async function meuPerfil() {
   const { data, error } = await supabase.rpc("meu_perfil");
@@ -66,7 +76,8 @@ export async function listarProfissionais(meuId) {
     notasDosPerfis(),
   ]);
   if (error) throw new Error(mensagemDeErro(error, "Não foi possível carregar os profissionais."));
-  return data.map((p) => ({ ...p, nota: notas[p.id] ?? null }));
+  const cvs = await curriculos(data.map((p) => p.id), "id, sobre, formacao");
+  return data.map((p) => ({ ...p, ...(cvs[p.id] ?? {}), nota: notas[p.id] ?? null }));
 }
 
 export async function perfisPorId(ids) {
@@ -78,7 +89,7 @@ export async function perfisPorId(ids) {
 
 /** Perfil público + avaliações recebidas (com nome de quem avaliou e título da vaga). */
 export async function perfilPublico(id) {
-  const [{ data: perfil }, notas, { data: avals }] = await Promise.all([
+  const [{ data: perfil }, notas, { data: avals }, cvs] = await Promise.all([
     supabase.from("profiles").select(PUBLICO).eq("id", id).maybeSingle(),
     notasDosPerfis(),
     supabase
@@ -87,11 +98,13 @@ export async function perfilPublico(id) {
       .eq("avaliado_id", id)
       .order("criado_em", { ascending: false })
       .limit(50),
+    curriculos([id]),
   ]);
   if (!perfil) return null;
   const autores = await perfisPorId((avals ?? []).map((a) => a.avaliador_id));
   return {
     ...perfil,
+    ...(cvs[id] ?? {}),
     nota: notas[id] ?? null,
     avaliacoes: (avals ?? []).map((a) => ({ ...a, autor: autores[a.avaliador_id] ?? null })),
   };
