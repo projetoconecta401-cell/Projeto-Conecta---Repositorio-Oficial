@@ -1,3 +1,4 @@
+import { marcarAceitePendente } from "../../lib/termos.js";
 import { Mail, Lock, User, AlertTriangle, Eye, EyeOff, Phone, Cake, IdCard, ShieldCheck, MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Screen, TopBar, Field, Campo, PrimaryButton, SecondaryButton } from "../../components/ui.jsx";
@@ -36,6 +37,7 @@ function EtapaCodigo({ dados, onVoltar }) {
     setEnviando(true);
     try {
       // Cria a conta e entra; o AuthGate abre o app logado (a foto é enviada em seguida).
+      marcarAceitePendente(dados.email);
       await cadastrar({ ...dados, codigo });
     } catch (err) {
       setErro(err.message);
@@ -114,7 +116,7 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
 
   const continuar = async () => {
     const er = validarPerfil(d);
-    if (!aceite) er.aceite = "Aceite os Termos de Uso e a Política de Privacidade.";
+    if (!aceite) er.aceite = "Aceite os Termos de Uso, a Política de Privacidade e o Termo de Consentimento (LGPD).";
     setErros(er);
     setErroGeral("");
     if (Object.keys(er).length) {
@@ -234,7 +236,7 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
             <span className="text-[12.5px] text-slate-600 leading-snug">
               Tenho 18 anos ou mais e aceito os{" "}
               <button type="button" onClick={onOpenTerms} className="text-emerald-700 font-bold underline">
-                Termos de Uso e a Política de Privacidade
+                Termos de Uso, a Política de Privacidade e o Termo de Consentimento (LGPD)
               </button>
               .
             </span>

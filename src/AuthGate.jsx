@@ -5,12 +5,15 @@ import { meuPerfil } from "./lib/perfis.js";
 import { AuthFlow } from "./screens/auth/AuthFlow.jsx";
 import { CompletarPerfilScreen } from "./screens/auth/CompletarPerfilScreen.jsx";
 import { PrimaryButton } from "./components/ui.jsx";
+import { AceiteLgpdScreen } from "./screens/auth/AceiteLgpdScreen.jsx";
+import { aceitarTermo, precisaAceitarTermo, temAceitePendente } from "./lib/termos.js";
 
 /*
  * Acompanha a sessão do Supabase Auth:
  *  - sem conta → telas de login/cadastro;
  *  - conta sem perfil (login com Google/Facebook ou conta antiga) → "Complete seu perfil";
  *  - conta suspensa por denúncias → aviso "Conta em análise";
+ *  - Termo de Consentimento (LGPD) ainda não aceito na versão atual → tela de aceite;
  *  - conta com perfil → App (recriado do zero a cada troca de conta).
  */
 function Abrindo({ texto = "Abrindo o EiFreela…" }) {
@@ -55,6 +58,13 @@ export default function AuthGate() {
     carregarPerfil();
   }, [userId, session === undefined]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Quem marcou o aceite no cadastro/completar perfil: registra sozinho no 1º acesso.
+  const pendente = precisaAceitarTermo(perfil) && temAceitePendente(session?.user?.email);
+  useEffect(() => {
+    if (!pendente) return;
+    aceitarTermo().then(carregarPerfil, () => {});
+  }, [pendente]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (session === undefined) return <Abrindo />;
   if (!session) return <AuthFlow />;
   if (erroPerfil) {
@@ -79,6 +89,10 @@ export default function AuthGate() {
         <PrimaryButton className="max-w-xs" onClick={sair}>Sair</PrimaryButton>
       </div>
     );
+  }
+  if (precisaAceitarTermo(perfil)) {
+    if (pendente) return <Abrindo />;
+    return <AceiteLgpdScreen atualizacao={!!perfil.termos_versao} onAceito={carregarPerfil} />;
   }
   return <App key={userId} session={session} perfil={perfil} onPerfilAlterado={carregarPerfil} />;
 }

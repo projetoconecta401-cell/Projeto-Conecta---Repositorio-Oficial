@@ -1,12 +1,15 @@
-import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, FileText } from "lucide-react";
+import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Field, Screen, TopBar } from "../../components/ui.jsx";
 import { CartaoPush } from "../../components/CartaoPush.jsx";
 import BotaoInstalar from "../../components/BotaoInstalar.jsx";
 import { cpfOculto, mascaraTelefone } from "../../lib/validacao.js";
 
-export function AccountScreen({ mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, profile, onEditProfile }) {
-  const [confirming, setConfirming] = useState(false);
+export function AccountScreen({
+  mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade,
+  temSenha = true, iniciarExclusao = false, profile, onEditProfile,
+}) {
+  const [confirming, setConfirming] = useState(iniciarExclusao);
   const [typed, setTyped] = useState("");
 
   if (confirming) {
@@ -99,8 +102,24 @@ export function AccountScreen({ mode, setMode, onDelete, onLogout, onOpenHistory
             { icon: Briefcase, label: "Minhas candidaturas", onClick: onOpenApplications },
             { icon: Calendar, label: "Minhas diárias", onClick: onOpenDiarias },
             { icon: History, label: "Histórico e avaliações", onClick: onOpenHistory },
+          ].map((it) => {
+            const Icon = it.icon;
+            return (
+              <button key={it.label} onClick={it.onClick} className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-100">
+                <Icon size={17} className="text-slate-500" />
+                <span className="text-[13.5px] font-medium text-slate-700 flex-1 text-left">{it.label}</span>
+                <ChevronRight size={16} className="text-slate-300" />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[12.5px] font-bold text-slate-600">Configurações</p>
+          {[
+            { icon: KeyRound, label: temSenha ? "Alterar senha" : "Criar senha", onClick: onOpenSenha },
+            { icon: ShieldCheck, label: "Privacidade e LGPD", onClick: onOpenPrivacidade },
             { icon: Ban, label: "Pessoas bloqueadas", onClick: onOpenBloqueados },
-            { icon: FileText, label: "Termos e privacidade", onClick: () => window.open("/privacidade/", "_blank", "noopener") },
           ].map((it) => {
             const Icon = it.icon;
             return (

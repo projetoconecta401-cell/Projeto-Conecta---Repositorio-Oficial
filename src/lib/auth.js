@@ -68,6 +68,36 @@ export async function cadastrar(dados) {
   await entrar(dados.email, dados.senha);
 }
 
+/** A conta tem senha própria? (quem entrou só com Google/Facebook não tem). */
+export const temSenhaPropria = (user) =>
+  !!user && ((user.app_metadata?.providers ?? []).includes("email") || (user.identities ?? []).some((i) => i.provider === "email"));
+
+/*
+ * Configurações → Alterar senha. Confere a senha atual (quando existe) e troca pela nova.
+ * Erros de campo vêm com .campo ("atual" | "nova") para a tela marcar o campo certo.
+ */
+export async function alterarSenha({ email, atual, nova }) {
+  const comCampo = (campo, msg) => Object.assign(new Error(msg), { campo });
+  if (atual !== null) {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: atual });
+    if (error) {
+      if (/invalid_credentials|Invalid login credentials/i.test(`${error.code} ${error.message}`)) throw comCampo("atual", "Senha atual incorreta.");
+      throw traduzirErro(error);
+    }
+  }
+  const { error } = await supabase.auth.updateUser({ password: nova });
+  if (error) {
+    const msg = `${error.code ?? ""} ${error.message ?? ""}`;
+    if (/same_password|different from the old/i.test(msg)) throw comCampo("nova", "A nova senha precisa ser diferente da atual.");
+    if (/weak_password|Password should/i.test(msg)) throw comCampo("nova", "Senha fraca. Use letras, números e um símbolo.");
+    if (/reauthentication|session_not_found|AuthSessionMissing/i.test(msg)) {
+      throw new Error("Por segurança, saia e entre de novo na conta antes de trocar a senha.");
+    }
+    if (/over_request_rate_limit|rate limit/i.test(msg)) throw new Error("Muitas tentativas. Aguarde um pouco e tente de novo.");
+    throw new Error("Não foi possível alterar a senha agora. Tente novamente.");
+  }
+}
+
 export async function sair() {
   await supabase.auth.signOut();
 }

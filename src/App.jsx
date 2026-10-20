@@ -8,6 +8,9 @@ import { iniciarPresenca } from "./lib/presenca.js";
 import { carregarBloqueados } from "./lib/seguranca.js";
 import { useBloqueados } from "./components/Seguranca.jsx";
 import { BloqueadosScreen } from "./screens/account/BloqueadosScreen.jsx";
+import { AlterarSenhaScreen } from "./screens/account/AlterarSenhaScreen.jsx";
+import { PrivacidadeScreen } from "./screens/account/PrivacidadeScreen.jsx";
+import { temSenhaPropria } from "./lib/auth.js";
 import { contarNaoLidas } from "./lib/notificacoes.js";
 import { vagasJaAvaliadas } from "./lib/avaliacoes.js";
 import { avisoDoSistema } from "./lib/push.js";
@@ -392,6 +395,10 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenApplications={() => go("myApplications")}
         onOpenDiarias={() => go("myDiarias")}
         onOpenBloqueados={() => go("bloqueados")}
+        onOpenSenha={() => go("senha")}
+        onOpenPrivacidade={() => go("privacidade")}
+        temSenha={temSenhaPropria(session.user)}
+        iniciarExclusao={!!nav.excluir}
         profile={profile}
         onEditProfile={() => go("editProfile")}
       />
@@ -442,6 +449,17 @@ function App({ session, perfil, onPerfilAlterado }) {
     );
   else if (screen === "bloqueados")
     content = <BloqueadosScreen onBack={back} onAviso={pushToast} />;
+  else if (screen === "senha")
+    content = <AlterarSenhaScreen session={session} onBack={back} onAviso={pushToast} />;
+  else if (screen === "privacidade")
+    content = (
+      <PrivacidadeScreen
+        profile={profile}
+        onBack={back}
+        onEditProfile={() => go("editProfile")}
+        onExcluirConta={() => go("account", { excluir: true })}
+      />
+    );
   else if (screen === "chatList")
     content = (
       <ChatListScreen

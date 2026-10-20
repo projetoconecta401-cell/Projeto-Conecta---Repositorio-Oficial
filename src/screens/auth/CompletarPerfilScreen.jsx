@@ -1,3 +1,4 @@
+import { aceitarTermo } from "../../lib/termos.js";
 import { useState } from "react";
 import { AlertTriangle, Cake, IdCard, Phone, ShieldCheck, User } from "lucide-react";
 import { Campo, Field, PrimaryButton, Screen, SecondaryButton, TopBar } from "../../components/ui.jsx";
@@ -57,6 +58,7 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
         avatar_url: foto ? null : fotoProvedor,
       });
       if (foto) await enviarAvatar(usuario.id, foto).catch(() => {});
+      await aceitarTermo().catch(() => {}); // registra o aceite (LGPD) marcado nesta tela
       await onDone();
     } catch (err) {
       setErroGeral(err.message);
@@ -110,8 +112,9 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
             />
             <span className="text-[12.5px] text-slate-600 leading-snug">
               Tenho 18 anos ou mais e aceito os{" "}
-              <a href="/termos/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Termos de Uso</a> e a{" "}
-              <a href="/privacidade/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Política de Privacidade</a>.
+              <a href="/termos/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Termos de Uso</a>, a{" "}
+              <a href="/privacidade/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Política de Privacidade</a> e o{" "}
+              <a href="/lgpd/" target="_blank" rel="noopener" className="text-emerald-700 font-bold underline">Termo de Consentimento (LGPD)</a>.
             </span>
           </label>
           {erros.aceite && <p className="text-[12px] text-red-500 font-semibold mt-1.5">{erros.aceite}</p>}

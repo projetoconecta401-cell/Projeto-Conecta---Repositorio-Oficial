@@ -1,6 +1,7 @@
 import { Screen, TopBar, PrimaryButton } from "../../components/ui.jsx";
+import { TextoTermoLgpd } from "../../components/TermoLgpd.jsx";
 
-/* Termos de Uso e Política de Privacidade (somente leitura; o aceite fica no cadastro). */
+/* Termos de Uso, Política de Privacidade e Termo de Consentimento (LGPD) — leitura; o aceite fica no cadastro. */
 export function TermsScreen({ onBack }) {
   return (
     <Screen>
@@ -22,6 +23,9 @@ export function TermsScreen({ onBack }) {
             pede nem armazena dados bancários. As vagas mostram só a região aproximada. Você pode excluir sua conta e
             todos os seus dados a qualquer momento em Perfil → Excluir conta (Lei nº 13.709/2018).
           </p>
+        </section>
+        <section className="border-t border-slate-200 pt-4">
+          <TextoTermoLgpd />
         </section>
         <PrimaryButton onClick={onBack}>Entendi</PrimaryButton>
       </div>
