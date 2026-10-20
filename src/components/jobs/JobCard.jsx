@@ -44,7 +44,10 @@ export function JobCard({ job, onOpen, saved = false, onToggleSave, posicao }) {
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
+          {job.tipo !== "diaria" && <Pill tone="blue">{job.tipoLabel}</Pill>}
           <Pill tone={toneDoStatus(job.status)}>{job.status}</Pill>
+          {job.quantidade > 1 && <Pill tone="orange">{job.quantidade} vagas</Pill>}
+          {job.remoto && <Pill tone="teal">Remoto</Pill>}
           {job.isOwner && <Pill tone="teal">Sua vaga</Pill>}
           {job.applicationStatus && <ApplicationStatusPill status={job.applicationStatus} />}
         </div>
@@ -64,8 +67,12 @@ export function JobCard({ job, onOpen, saved = false, onToggleSave, posicao }) {
           <span className="flex items-center gap-2 min-w-0">
             {proximidade ? <Navigation size={14} className="text-emerald-500 shrink-0" /> : <MapPin size={14} className="text-slate-400 shrink-0" />}
             <span className="truncate">
-              {proximidade ? `${proximidade} · ` : ""}
-              {job.neighborhood} · {job.city}/{job.state}
+              {job.remoto ? `Remoto · ${job.city}/${job.state}` : (
+                <>
+                  {proximidade ? `${proximidade} · ` : ""}
+                  {job.neighborhood} · {job.city}/{job.state}
+                </>
+              )}
             </span>
           </span>
           {job.isOwner && (
@@ -81,8 +88,9 @@ export function JobCard({ job, onOpen, saved = false, onToggleSave, posicao }) {
         {/* Rodapé */}
         <div className="flex items-end justify-between gap-3 mt-auto pt-1">
           <div className="min-w-0">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Valor diária</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Valor</span>
             <span className="text-[18px] font-extrabold text-emerald-700 whitespace-nowrap">{reais(job.value)}</span>
+            <span className="text-[12px] font-semibold text-slate-500">{job.valorSufixo}</span>
           </div>
           <span className="text-[11px] text-slate-400 shrink-0">{timeAgo(new Date(job.createdAt))}</span>
         </div>

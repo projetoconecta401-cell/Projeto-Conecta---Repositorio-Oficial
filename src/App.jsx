@@ -259,7 +259,10 @@ function App({ session, perfil, onPerfilAlterado }) {
   const handleAccept = (job, freelancerId) =>
     executar(() => aceitarCandidato(job.id, freelancerId), {
       title: "Candidato aceito ✅",
-      body: `"${job.title}" saiu do mural. O profissional foi avisado.`,
+      body:
+        job.quantidade > 1
+          ? `O profissional foi avisado. Ainda ${job.quantidade - 1 === 1 ? "resta 1 vaga" : `restam ${job.quantidade - 1} vagas`} em "${job.title}".`
+          : `"${job.title}" saiu do mural. O profissional foi avisado.`,
     });
 
   const handleCancelHire = (job) =>

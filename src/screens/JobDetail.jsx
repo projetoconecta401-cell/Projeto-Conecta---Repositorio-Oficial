@@ -1,4 +1,4 @@
-import { MapPin, MessageCircle, AlertTriangle, CheckCircle2, ShieldCheck, Navigation, Star, Trash2, UserCheck, Users, Flag } from "lucide-react";
+import { MapPin, MessageCircle, AlertTriangle, CheckCircle2, ShieldCheck, Navigation, Star, Trash2, UserCheck, Users, Flag, GraduationCap, Briefcase, Globe, CalendarRange } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApplicationStatusPill } from "../components/jobs/ApplicationStatusPill.jsx";
 import { CancelReasonModal } from "../components/jobs/CancelReasonModal.jsx";
@@ -6,7 +6,9 @@ import {
   Avatar, Carregando, EmptyState, Estrelas, GreenButton, OrangeButton, Pill, PrimaryButton, Screen, SecondaryButton, TopBar, WhatsAppIcon, toneDoStatus,
 } from "../components/ui.jsx";
 import { distanciaDaVaga, textoProximidade } from "../lib/geo.js";
-import { notasDosPerfis, perfisPorId } from "../lib/perfis.js";
+import { curriculos, notasDosPerfis, perfisPorId } from "../lib/perfis.js";
+import { resumoFormacao } from "../lib/curriculo.js";
+import { regimeLabel } from "../data/catalogo.js";
 import { contatoDaVaga, reais } from "../lib/vagas.js";
 import { BotaoCompartilharDiaria, DenunciarSheet } from "../components/Seguranca.jsx";
 import { soDigitos } from "../lib/validacao.js";
@@ -14,18 +16,43 @@ import { timeAgo } from "../lib/time.js";
 
 const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-/* Pessoa (contratante, candidato ou contratado) com nota. */
-function LinhaPessoa({ perfil, nota, onOpen, children }) {
+/* Pessoa (contratante, candidato ou contratado) com nota e, se houver, resumo do mini currículo. */
+function LinhaPessoa({ perfil, nota, cv, onOpen, children }) {
+  const formacao = resumoFormacao(cv?.formacao);
+  const exp = cv?.experiencias?.[0];
+  const temResumo = cv && (formacao || exp || cv.sobre);
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 min-w-0">
-      <button type="button" onClick={onOpen} className="flex items-center gap-3 min-w-0 flex-1 text-left">
-        <Avatar url={perfil?.avatar_url} nome={perfil?.nome} size={44} />
-        <span className="min-w-0 flex flex-col gap-0.5">
-          <span className="font-bold text-slate-800 text-[14px] truncate">{perfil?.nome ?? "Usuário"}</span>
-          {nota ? <Estrelas valor={nota.media} total={nota.total} /> : <span className="text-[11.5px] text-slate-400">Ainda sem avaliações</span>}
-        </span>
-      </button>
-      {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}
+    <div className="p-3 rounded-xl bg-white border border-slate-100 min-w-0 flex flex-col gap-2">
+      <div className="flex items-center gap-3 min-w-0">
+        <button type="button" onClick={onOpen} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+          <Avatar url={perfil?.avatar_url} nome={perfil?.nome} size={44} />
+          <span className="min-w-0 flex flex-col gap-0.5">
+            <span className="font-bold text-slate-800 text-[14px] truncate">{perfil?.nome ?? "Usuário"}</span>
+            {nota ? <Estrelas valor={nota.media} total={nota.total} /> : <span className="text-[11.5px] text-slate-400">Ainda sem avaliações</span>}
+          </span>
+        </button>
+        {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}
+      </div>
+      {temResumo && (
+        <button type="button" onClick={onOpen} className="text-left flex flex-col gap-1 pl-3 border-l-2 border-emerald-200 min-w-0">
+          {formacao && (
+            <span className="flex items-start gap-1.5 text-[12px] text-slate-600 min-w-0">
+              <GraduationCap size={13} className="shrink-0 mt-0.5 text-emerald-600" /> <span className="min-w-0 break-words">{formacao}</span>
+            </span>
+          )}
+          {exp && (
+            <span className="flex items-start gap-1.5 text-[12px] text-slate-600 min-w-0">
+              <Briefcase size={13} className="shrink-0 mt-0.5 text-emerald-600" />
+              <span className="min-w-0 break-words">
+                {exp.funcao}{exp.local ? ` · ${exp.local}` : ""}{exp.periodo ? ` (${exp.periodo})` : ""}
+                {cv.experiencias.length > 1 ? ` · +${cv.experiencias.length - 1}` : ""}
+              </span>
+            </span>
+          )}
+          {cv.sobre && <span className="text-[12px] text-slate-500 italic line-clamp-2 break-words">“{cv.sobre}”</span>}
+          <span className="text-[11.5px] font-bold text-emerald-700">Ver currículo completo</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -36,6 +63,7 @@ export function JobDetail({
 }) {
   const [perfis, setPerfis] = useState({});
   const [notas, setNotas] = useState({});
+  const [cvs, setCvs] = useState({});
   const [modal, setModal] = useState(null); // "desistir" | "cancelar"
   const [ocupado, setOcupado] = useState(false);
   const [denunciando, setDenunciando] = useState(false);
@@ -53,6 +81,7 @@ export function JobDetail({
   useEffect(() => {
     if (!ids) return;
     perfisPorId(ids.split(",")).then(setPerfis);
+    curriculos(ids.split(",")).then(setCvs);
     notasDosPerfis().then(setNotas);
   }, [ids]);
 
@@ -91,6 +120,7 @@ export function JobDetail({
         <div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <Pill tone="teal">{job.category}</Pill>
+            {job.tipo !== "diaria" && <Pill tone="blue">{job.tipoLabel}</Pill>}
             <Pill tone={toneDoStatus(job.status)}>{job.status}</Pill>
             {job.applicationStatus && <ApplicationStatusPill status={job.applicationStatus} />}
           </div>
@@ -100,16 +130,33 @@ export function JobDetail({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3.5 rounded-xl bg-white border border-slate-100 min-w-0">
-            <p className="text-[11px] text-slate-400">Valor da diária</p>
-            <p className="text-[17px] font-extrabold text-emerald-700 mt-0.5">{reais(job.value)}</p>
+            <p className="text-[11px] text-slate-400">Valor</p>
+            <p className="text-[17px] font-extrabold text-emerald-700 mt-0.5">
+              {reais(job.value)}<span className="text-[12px] font-semibold text-slate-500">{job.valorSufixo}</span>
+            </p>
           </div>
           <div className="p-3.5 rounded-xl bg-white border border-slate-100 min-w-0">
-            <p className="text-[11px] text-slate-400">Data e horário</p>
+            <p className="text-[11px] text-slate-400">{job.tipo === "temporario" ? "Período" : job.tipo === "freela" ? "Prazo" : "Data e horário"}</p>
             <p className="text-[13px] font-bold text-slate-700 mt-1 break-words">{job.date}</p>
           </div>
         </div>
 
+        {(job.tipo === "temporario" || job.quantidade > 1) && (
+          <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 flex flex-col gap-1.5 text-[13px] text-sky-900">
+            <p className="font-bold flex items-center gap-1.5"><CalendarRange size={15} /> {job.tipo === "temporario" ? "Contrato temporário" : "Mais de uma vaga"}</p>
+            {job.cargaHoraria && <p><b>Carga horária:</b> {job.cargaHoraria}</p>}
+            {job.tipo === "temporario" && job.regime && <p><b>Regime:</b> {regimeLabel(job.regime)}</p>}
+            {job.quantidade > 1 && <p><b>Vagas abertas:</b> {job.quantidade}</p>}
+          </div>
+        )}
+
         {/* Item 4: só região aproximada — nunca o endereço exato. */}
+        {job.remoto ? (
+          <div className="p-3.5 rounded-xl bg-white border border-slate-100">
+            <p className="text-[14px] font-semibold text-slate-700 flex items-center gap-1.5"><Globe size={15} className="text-emerald-500" /> Trabalho remoto</p>
+            <p className="text-[12.5px] text-slate-500 mt-1">Pode ser feito à distância. Contratante em {job.city}/{job.state}.</p>
+          </div>
+        ) : (
         <div className="p-3.5 rounded-xl bg-white border border-slate-100">
           <p className="text-[11px] text-slate-400 mb-1.5">Região aproximada</p>
           <p className="text-[14px] font-semibold text-slate-700 flex items-center gap-1.5">
@@ -124,6 +171,7 @@ export function JobDetail({
             Por segurança, o endereço exato não aparece no app. Ele é combinado pelo chat com o profissional contratado.
           </p>
         </div>
+        )}
 
         {job.details && (
           <div className="p-3.5 rounded-xl bg-white border border-slate-100">
@@ -175,7 +223,7 @@ export function JobDetail({
                 <p className="text-[12.5px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                   <UserCheck size={15} className="text-emerald-600" /> Profissional contratado
                 </p>
-                <LinhaPessoa perfil={contratado} nota={notas[job.contratadoId]} onOpen={() => onOpenProfile(job.contratadoId)}>
+                <LinhaPessoa perfil={contratado} nota={notas[job.contratadoId]} cv={cvs[job.contratadoId]} onOpen={() => onOpenProfile(job.contratadoId)}>
                   {conversaDoContratado && (
                     <button onClick={() => onOpenChat(conversaDoContratado)} aria-label="Abrir conversa" className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
                       <MessageCircle size={17} />
@@ -195,7 +243,7 @@ export function JobDetail({
                 ) : (
                   <div className="space-y-2">
                     {job.candidatos.map((c) => (
-                      <LinhaPessoa key={c.conversaId} perfil={perfis[c.freelancerId]} nota={notas[c.freelancerId]} onOpen={() => onOpenProfile(c.freelancerId)}>
+                      <LinhaPessoa key={c.conversaId} perfil={perfis[c.freelancerId]} nota={notas[c.freelancerId]} cv={cvs[c.freelancerId]} onOpen={() => onOpenProfile(c.freelancerId)}>
                         <button onClick={() => onOpenChat(c.conversaId)} aria-label="Conversar" className="p-2.5 rounded-lg bg-slate-100 text-slate-600">
                           <MessageCircle size={17} />
                         </button>
@@ -214,7 +262,11 @@ export function JobDetail({
                 )}
                 {aberta && job.candidatos.length > 0 && (
                   <p className="text-[11.5px] text-slate-400 mt-2">
-                    Ao aceitar um candidato, a vaga passa para <b>Em Atendimento</b> e sai do mural.
+                    {job.quantidade > 1 ? (
+                      <>Você pode aceitar até <b>{job.quantidade}</b> pessoas. Cada uma ganha a própria vaga em <b>Minhas Vagas</b>; as outras posições continuam no mural.</>
+                    ) : (
+                      <>Ao aceitar um candidato, a vaga passa para <b>Em Atendimento</b> e sai do mural.</>
+                    )}
                   </p>
                 )}
               </div>

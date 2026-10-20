@@ -3,7 +3,7 @@
  * Para mudar um texto da página, edite aqui; o layout fica em Landing.jsx.
  */
 import {
-  Utensils, PartyPopper, Palette, Sparkles, Hammer, Wrench,
+  Utensils, PartyPopper, Palette, Sparkles, Hammer, Wrench, ShoppingBag, Clapperboard,
   UserCheck, Search, MessageCircle, ShieldCheck, MapPin, Star,
   Briefcase, Users, Wallet, Calendar, Bell, BadgeCheck,
 } from "lucide-react";
@@ -15,14 +15,16 @@ export const HERO = {
   eyebrow: "Diárias e serviços freelancer",
   title: "A mão extra que você precisa, na hora certa.",
   subtitle:
-    "O EiFreela conecta quem precisa contratar uma diária a profissionais perto de você. Publique, encontre, combine e avalie, tudo pelo celular. Instale grátis direto do navegador, sem loja de aplicativos.",
+    "O EiFreela conecta quem precisa contratar uma diária, um temporário ou um freela a profissionais perto de você. Publique, encontre, combine e avalie, tudo pelo celular. Instale grátis direto do navegador, sem loja de aplicativos.",
 };
 
 export const CATEGORIES = [
   { label: "Gastronomia", icon: Utensils },
   { label: "Eventos", icon: PartyPopper },
-  { label: "Design/Digital", icon: Palette },
-  { label: "Estética", icon: Sparkles },
+  { label: "Vendas e comércio", icon: ShoppingBag },
+  { label: "Design gráfico", icon: Palette },
+  { label: "Criação de conteúdo", icon: Clapperboard },
+  { label: "Estética/Beleza", icon: Sparkles },
   { label: "Manutenção/Obras", icon: Hammer },
   { label: "Serviços Gerais", icon: Wrench },
 ];

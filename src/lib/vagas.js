@@ -1,5 +1,6 @@
 import { mensagemDeErro, supabase } from "./supabase.js";
 import { PARECE_ENDERECO } from "./validacao.js";
+import { tipoDaVaga, unidadeCurta } from "../data/catalogo.js";
 
 /*
  * Vagas no Supabase (tabela public.vagas). Nada de vagas de exemplo: o mural mostra
@@ -9,11 +10,26 @@ import { PARECE_ENDERECO } from "./validacao.js";
  * O WhatsApp opcional fica em "vagas_contato": só o dono e o profissional contratado leem.
  * Ciclo da diária: Disponível → Em Negociação (alguém se candidatou) → Em Atendimento
  * (o dono aceitou um candidato) → check-in → check-out → Concluída (libera avaliações).
+ * Tipos: diária, temporário (período, carga horária, regime) e freela/projeto (pode ser
+ * remoto). Vaga com várias posições: cada pessoa aceita ganha a própria vaga
+ * (função contratar_candidato) e as posições abertas diminuem.
  */
 
 const TABELA = "vagas";
-const COLUNAS =
+const COLUNAS_BASE =
   "id, criado_em, titulo, categoria, valor, data, horario, bairro, cidade, uf, status, usuario_id, contratante, detalhes, lat_aprox, lng_aprox, contratado_id, check_in_em, check_out_em";
+const COLUNAS_TIPO = ", tipo, data_fim, carga_horaria, regime, valor_unidade, quantidade, remoto, vaga_origem_id";
+let COLUNAS = COLUNAS_BASE + COLUNAS_TIPO;
+
+/* Se o banco ainda não tiver as colunas novas, continua com as antigas. */
+async function comColunas(fazer) {
+  const r = await fazer(COLUNAS);
+  if (r.error && /42703|column .* does not exist/i.test(`${r.error.code} ${r.error.message}`) && COLUNAS !== COLUNAS_BASE) {
+    COLUNAS = COLUNAS_BASE;
+    return fazer(COLUNAS);
+  }
+  return r;
+}
 
 export const hojeISO = () => {
   const d = new Date();
@@ -43,19 +59,31 @@ export function periodoDoHorario(horario) {
 
 /* Valida e normaliza os dados do formulário. Retorna { dados } ou { erro }. */
 export function validarFormulario(form) {
+  const tipo = ["diaria", "temporario", "freela"].includes(form.tipo) ? form.tipo : "diaria";
+  const remoto = tipo === "freela" && !!form.remoto;
   const titulo = form.title?.trim() ?? "";
   const valor = parseValor(form.value);
-  const bairro = form.neighborhood?.trim() ?? "";
+  const bairro = remoto ? "Remoto" : form.neighborhood?.trim() ?? "";
   const cidade = form.city?.trim() ?? "";
   const whatsapp = form.phone?.trim() || null;
   const detalhes = form.details?.trim() || null;
+  const quantidade = Math.round(Number(form.quantidade || 1));
+  const unidadesOk = { diaria: ["dia", "hora"], temporario: ["mes", "semana", "dia", "hora"], freela: ["projeto", "hora"] }[tipo];
+  const valorUnidade = unidadesOk.includes(form.valorUnidade) ? form.valorUnidade : unidadesOk[0];
+  const dataFim = tipo === "temporario" ? form.dataFimISO || null : null;
+  const cargaHoraria = tipo === "temporario" ? form.cargaHoraria?.trim() || null : null;
+  const regime = tipo === "temporario" ? form.regime || "a_combinar" : null;
 
   if (titulo.length < 3) return { erro: "Informe um título com pelo menos 3 letras." };
   if (titulo.length > 120) return { erro: "O título pode ter no máximo 120 caracteres." };
   if (!Number.isFinite(valor) || valor <= 0) return { erro: "Informe um valor válido em reais (ex.: 180 ou 180,50)." };
-  if (valor > 100000) return { erro: "O valor máximo por diária é R$ 100.000." };
-  if (!form.dateISO) return { erro: "Escolha a data do serviço." };
-  if (form.dateISO < hojeISO()) return { erro: "A data do serviço não pode estar no passado." };
+  if (valor > 100000) return { erro: "O valor máximo é R$ 100.000." };
+  if (!form.dateISO) return { erro: tipo === "freela" ? "Escolha a data de entrega." : tipo === "temporario" ? "Escolha a data de início." : "Escolha a data do serviço." };
+  if (form.dateISO < hojeISO()) return { erro: "A data não pode estar no passado." };
+  if (tipo === "temporario" && !dataFim) return { erro: "Escolha a data de término do contrato." };
+  if (dataFim && dataFim < form.dateISO) return { erro: "A data de término precisa ser depois do início." };
+  if (cargaHoraria && cargaHoraria.length > 80) return { erro: "A carga horária pode ter no máximo 80 caracteres." };
+  if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) return { erro: "O número de vagas deve ser entre 1 e 50." };
   if (bairro.length < 2) return { erro: "Informe o bairro ou região (sem rua e número)." };
   if (cidade.length < 2) return { erro: "Informe a cidade." };
   if (whatsapp && !/^[0-9()+ .-]{8,20}$/.test(whatsapp)) return { erro: "WhatsApp inválido. Use só números, espaços, ( ) e -." };
@@ -64,21 +92,25 @@ export function validarFormulario(form) {
     return { erro: "Não coloque o endereço exato na vaga. Informe só o bairro; o endereço é combinado pelo chat." };
   }
 
-  return {
-    dados: {
-      titulo,
-      categoria: form.category,
-      valor: Math.round(valor * 100) / 100,
-      data: form.dateISO,
-      horario: form.timeLabel?.trim() || null,
-      bairro,
-      cidade,
-      uf: form.state,
-      detalhes,
-    },
-    whatsapp,
+  const dados = {
+    titulo,
+    categoria: form.category,
+    valor: Math.round(valor * 100) / 100,
+    data: form.dateISO,
+    horario: form.timeLabel?.trim() || null,
+    bairro,
+    cidade,
+    uf: form.state,
+    detalhes,
   };
+  // Campos novos só vão quando fogem do padrão (assim funciona mesmo antes do banco ser atualizado).
+  if (tipo !== "diaria" || quantidade > 1 || valorUnidade !== "dia") {
+    Object.assign(dados, { tipo, data_fim: dataFim, carga_horaria: cargaHoraria, regime, valor_unidade: valorUnidade, quantidade, remoto });
+  }
+  return { dados, whatsapp };
 }
+
+const dataBR = (iso) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("pt-BR") : null);
 
 /* Situação da MINHA candidatura nessa vaga (visão do profissional). */
 function statusDaCandidatura(row, userId, candidatou) {
@@ -95,7 +127,14 @@ function statusDaCandidatura(row, userId, candidatou) {
 
 /* Linha do banco -> objeto de vaga no formato usado pelas telas. */
 export function vagaParaJob(row, userId = null, extras = {}) {
-  const dataLabel = row.data ? new Date(row.data + "T00:00:00").toLocaleDateString("pt-BR") : "A combinar";
+  const tipo = row.tipo ?? "diaria";
+  const dataLabel = row.data
+    ? tipo === "temporario" && row.data_fim
+      ? `${dataBR(row.data)} a ${dataBR(row.data_fim)}`
+      : tipo === "freela"
+        ? `Entrega até ${dataBR(row.data)}`
+        : dataBR(row.data)
+    : "A combinar";
   const isOwner = !!userId && row.usuario_id === userId;
   const isHired = !!userId && row.contratado_id === userId;
   const candidaturaId = extras.candidaturaId ?? null;
@@ -104,6 +143,16 @@ export function vagaParaJob(row, userId = null, extras = {}) {
     title: row.titulo,
     category: row.categoria,
     value: Number(row.valor),
+    tipo,
+    tipoLabel: tipoDaVaga(tipo).curto,
+    valorUnidade: row.valor_unidade ?? "dia",
+    valorSufixo: unidadeCurta(row.valor_unidade ?? "dia"),
+    dataFimISO: row.data_fim ?? null,
+    cargaHoraria: row.carga_horaria ?? null,
+    regime: row.regime ?? null,
+    quantidade: row.quantidade ?? 1,
+    remoto: !!row.remoto,
+    origemId: row.vaga_origem_id ?? null,
     date: row.horario ? `${dataLabel} · ${row.horario}` : dataLabel,
     dateLabel: dataLabel,
     timeLabel: row.horario || "Horário a combinar",
@@ -134,7 +183,7 @@ export function vagaParaJob(row, userId = null, extras = {}) {
 
 /** Carrega o mural + tudo o que envolve a conta (vagas minhas, contratações e candidaturas). */
 export async function listarVagas(userId = null) {
-  const recentes = supabase.from(TABELA).select(COLUNAS).order("criado_em", { ascending: false }).limit(200);
+  const r1 = await comColunas((cols) => supabase.from(TABELA).select(cols).order("criado_em", { ascending: false }).limit(200));
   const minhas = userId
     ? supabase.from(TABELA).select(COLUNAS).or(`usuario_id.eq.${userId},contratado_id.eq.${userId}`).limit(200)
     : Promise.resolve({ data: [] });
@@ -142,7 +191,7 @@ export async function listarVagas(userId = null) {
     ? supabase.from("conversas").select("id, vaga_id, contratante_id, freelancer_id").not("vaga_id", "is", null).limit(500)
     : Promise.resolve({ data: [] });
 
-  const [r1, r2, r3] = await Promise.all([recentes, minhas, conversas]);
+  const [r2, r3] = await Promise.all([minhas, conversas]);
   if (r1.error) throw new Error(mensagemDeErro(r1.error, "Não foi possível carregar as vagas."));
 
   const porId = new Map();
@@ -191,7 +240,12 @@ export async function publicarVaga(form, userId, { contratante, posicao } = {}) 
     })
     .select(COLUNAS)
     .single();
-  if (error) throw new Error(mensagemDeErro(error, "Não foi possível publicar a vaga."));
+  if (error) {
+    if (/23514|check constraint|42703/i.test(`${error.code} ${error.message}`) && (dados.tipo || !["Gastronomia", "Eventos", "Estética/Beleza", "Manutenção/Obras", "Serviços Gerais"].includes(dados.categoria))) {
+      throw new Error("O banco ainda não foi atualizado para os novos tipos e categorias. Avise o administrador.");
+    }
+    throw new Error(mensagemDeErro(error, "Não foi possível publicar a vaga."));
+  }
   if (whatsapp) await supabase.from("vagas_contato").insert({ vaga_id: data.id, whatsapp }).then(() => {}, () => {});
   return vagaParaJob(data, userId);
 }
@@ -213,9 +267,20 @@ async function atualizarVaga(id, campos, padrao) {
   if (error) throw new Error(mensagemDeErro(error, padrao));
 }
 
-/** Dono aceita um candidato: a vaga sai do mural ("Em Atendimento"). */
-export const aceitarCandidato = (vagaId, freelancerId) =>
-  atualizarVaga(vagaId, { contratado_id: freelancerId, status: "Em Atendimento" }, "Não foi possível aceitar o candidato.");
+/**
+ * Dono aceita um candidato. Vaga com uma posição: sai do mural ("Em Atendimento").
+ * Várias posições: o candidato ganha a própria vaga e as posições abertas diminuem.
+ * Retorna o id da vaga da contratação.
+ */
+export async function aceitarCandidato(vagaId, freelancerId) {
+  const { data, error } = await supabase.rpc("contratar_candidato", { p_vaga: vagaId, p_freelancer: freelancerId });
+  if (!error) return data;
+  if (/PGRST202|Could not find the function/i.test(`${error.code} ${error.message}`)) {
+    await atualizarVaga(vagaId, { contratado_id: freelancerId, status: "Em Atendimento" }, "Não foi possível aceitar o candidato.");
+    return vagaId;
+  }
+  throw new Error(mensagemDeErro(error, "Não foi possível aceitar o candidato."));
+}
 
 /** Dono cancela a contratação: a vaga volta ao mural. */
 export const cancelarContratacao = (vagaId) =>

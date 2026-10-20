@@ -1,6 +1,6 @@
 /* Validações e máscaras usadas no cadastro, no perfil e na publicação de vagas. */
 
-export const AREAS = ["Gastronomia", "Eventos", "Design/Digital", "Estética/Beleza", "Manutenção/Obras", "Serviços Gerais"];
+export const AREAS = ["Gastronomia", "Eventos", "Vendas e comércio", "Administrativo", "Design gráfico", "Criação de conteúdo", "Fotografia e vídeo", "Tecnologia e TI", "Estética/Beleza", "Manutenção/Obras", "Serviços Gerais", "Logística e entregas", "Motorista", "Cuidados (babá e idosos)", "Aulas e reforço", "Agro e campo"];
 
 export const soDigitos = (s) => String(s ?? "").replace(/\D/g, "");
 

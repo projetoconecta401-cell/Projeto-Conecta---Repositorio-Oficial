@@ -1,5 +1,5 @@
 import {
-  Bell, Briefcase, Calendar, CalendarCheck, Clock, HandHelping, IdCard, Lock, LogIn, Mail, MapPin, MessageCircle,
+  ShoppingBag, Palette, Bell, Briefcase, Calendar, CalendarCheck, Clock, HandHelping, IdCard, Lock, LogIn, Mail, MapPin, MessageCircle,
   Mic, Navigation, Phone, ShieldCheck, Smartphone, Star, UserPlus, Users, Utensils, PartyPopper, Hammer, Camera, Cake, User,
 } from "lucide-react";
 import { GuiaInstalacao } from "../../components/GuiaInstalacao.jsx";
@@ -11,9 +11,10 @@ import { GuiaInstalacao } from "../../components/GuiaInstalacao.jsx";
  */
 
 const EXEMPLOS = [
-  { icon: PartyPopper, cat: "Eventos", titulo: "Garçom para festa de casamento", quem: "Buffet Sabor & Arte", quando: "Sáb · 18h às 23h", onde: "A 2 km · Centro", valor: "R$ 180" },
-  { icon: Utensils, cat: "Gastronomia", titulo: "Auxiliar de cozinha (almoço)", quem: "Restaurante da Praça", quando: "Amanhã · 10h às 15h", onde: "A 4 km · Jardim América", valor: "R$ 120" },
-  { icon: Hammer, cat: "Manutenção/Obras", titulo: "Pintura de muro (30 m²)", quem: "Carla M.", quando: "Seg · Horário a combinar", onde: "Próximo a você", valor: "R$ 450" },
+  { icon: PartyPopper, cat: "Eventos", tipo: "Diária", titulo: "Garçom para festa de casamento", quem: "Buffet Sabor & Arte", quando: "Sáb · 18h às 23h", onde: "A 2 km · Centro", valor: "R$ 180", unidade: "/dia" },
+  { icon: ShoppingBag, cat: "Vendas e comércio", tipo: "Temporário · 3 vagas", titulo: "Vendedor(a) para o fim de ano", quem: "Loja Central Modas", quando: "01/12 a 05/01 · 44h semanais", onde: "A 3 km · Centro", valor: "R$ 1.800", unidade: "/mês" },
+  { icon: Palette, cat: "Design gráfico", tipo: "Freela", titulo: "Criar logotipo e artes para Instagram", quem: "Doceria Da Vó", quando: "Entrega até 15/11", onde: "Remoto", valor: "R$ 450", unidade: " pelo projeto" },
+  { icon: Utensils, cat: "Gastronomia", tipo: "Diária", titulo: "Auxiliar de cozinha (almoço)", quem: "Restaurante da Praça", quando: "Amanhã · 10h às 15h", onde: "A 4 km · Jardim América", valor: "R$ 120", unidade: "/dia" },
 ];
 
 const RECURSOS = [
@@ -60,7 +61,7 @@ export function BoasVindasScreen({ goCadastro, goLogin }) {
             A mão extra que você precisa, <span className="text-emerald-600">perto de você.</span>
           </h1>
           <p className="text-[15px] text-slate-600 leading-relaxed">
-            O EiFreela liga quem precisa de alguém para uma diária ou um serviço avulso a profissionais da sua região. Publique uma vaga
+            O EiFreela liga quem precisa de alguém para uma diária, um contrato temporário (como o fim de ano) ou um freela a profissionais da sua região. Publique uma vaga
             ou encontre trabalho, converse pelo chat, combine os detalhes e avalie no final. Tudo pelo celular.
           </p>
           <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2.5 pt-1">
@@ -80,7 +81,7 @@ export function BoasVindasScreen({ goCadastro, goLogin }) {
               icon={Briefcase}
               titulo="Quem precisa contratar"
               itens={[
-                "Publique a vaga com data, horário, valor e bairro",
+                "Publique diária, temporário (ex.: fim de ano) ou freela, com uma ou várias vagas",
                 "Receba candidatos e veja foto, áreas e avaliações",
                 "Escolha o profissional e combine tudo pelo chat",
               ]}
@@ -89,7 +90,7 @@ export function BoasVindasScreen({ goCadastro, goLogin }) {
               icon={HandHelping}
               titulo="Quem quer trabalhar"
               itens={[
-                "Encontre diárias por categoria, valor, data e distância",
+                "Encontre diárias, temporários e freelas por área, valor e distância",
                 "Candidate-se com um toque e converse com o contratante",
                 "Ganhe avaliações e mostre sua nota para novos clientes",
               ]}
@@ -245,6 +246,7 @@ const ExemploVaga = ({ v }) => {
         <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><Icon size={16} /></span>
         <span className="text-[12px] font-bold text-slate-600 truncate">{v.cat}</span>
       </div>
+      <span className="self-start px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[11px] font-bold">{v.tipo}</span>
       <div className="min-w-0">
         <p className="font-bold text-slate-800 text-[15px] leading-snug line-clamp-2">{v.titulo}</p>
         <p className="text-[12px] text-slate-500 truncate">{v.quem}</p>
@@ -254,8 +256,9 @@ const ExemploVaga = ({ v }) => {
         <span className="flex items-center gap-2 min-w-0"><Navigation size={14} className="text-emerald-500 shrink-0" /><span className="truncate">{v.onde}</span></span>
       </div>
       <div>
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Valor diária</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Valor</span>
         <span className="text-[18px] font-extrabold text-emerald-700">{v.valor}</span>
+        <span className="text-[12px] font-semibold text-slate-500">{v.unidade}</span>
       </div>
     </div>
   );

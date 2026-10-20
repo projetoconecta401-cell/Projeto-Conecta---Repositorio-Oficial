@@ -14,7 +14,7 @@ import { withSupabase } from "npm:@supabase/server@1.9.0";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Mínimo 8 caracteres, com letra, número e caractere especial (@ # $ ! etc.).
 const SENHA = /^(?=.*[A-Za-zÀ-ÿ])(?=.*\d)(?=.*[^A-Za-zÀ-ÿ0-9\s]).{8,72}$/;
-const AREAS = ["Gastronomia", "Eventos", "Design/Digital", "Estética/Beleza", "Manutenção/Obras", "Serviços Gerais"];
+const AREAS = ["Gastronomia", "Eventos", "Vendas e comércio", "Administrativo", "Design gráfico", "Criação de conteúdo", "Fotografia e vídeo", "Tecnologia e TI", "Estética/Beleza", "Manutenção/Obras", "Serviços Gerais", "Logística e entregas", "Motorista", "Cuidados (babá e idosos)", "Aulas e reforço", "Agro e campo"];
 const MAX_TENTATIVAS = 5;
 
 const erro = (mensagem: string, status = 400) => Response.json({ erro: mensagem }, { status });

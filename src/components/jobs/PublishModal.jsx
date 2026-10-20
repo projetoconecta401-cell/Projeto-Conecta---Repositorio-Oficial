@@ -1,6 +1,6 @@
 import { Phone, AlertTriangle, ShieldCheck, Navigation } from "lucide-react";
 import { useState } from "react";
-import { CATEGORIES, STATES } from "../../data/catalogo.js";
+import { CATEGORIES, REGIMES, STATES, TIPOS_VAGA, UNIDADES_VALOR } from "../../data/catalogo.js";
 import { hojeISO } from "../../lib/vagas.js";
 import { mascaraTelefone } from "../../lib/validacao.js";
 import { Campo, Field, OrangeButton, Sheet } from "../ui.jsx";
@@ -10,6 +10,7 @@ const selectCls =
 
 export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosicao }) {
   const [form, setForm] = useState({
+    tipo: "diaria",
     title: "",
     category: CATEGORIES[0].label,
     value: "",
@@ -21,11 +22,23 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
     phone: "",
     details: "",
     usarLocal: !!posicao,
+    dataFimISO: "",
+    cargaHoraria: "",
+    regime: "a_combinar",
+    valorUnidade: "dia",
+    quantidade: "1",
+    remoto: false,
   });
+  const tipo = form.tipo;
+  const unidades = { diaria: ["dia", "hora"], temporario: ["mes", "semana", "dia", "hora"], freela: ["projeto", "hora"] }[tipo];
+  const escolherTipo = (t) =>
+    setForm((f) => ({ ...f, tipo: t, valorUnidade: { diaria: "dia", temporario: "mes", freela: "projeto" }[t], remoto: t === "freela" ? f.remoto : false }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const canSubmit = form.title && form.value && form.dateISO && form.neighborhood && form.city && !saving;
+  const canSubmit =
+    form.title && form.value && form.dateISO && (form.remoto || form.neighborhood) && form.city &&
+    (tipo !== "temporario" || form.dataFimISO) && !saving;
 
   const alternarLocal = async (marcado) => {
     if (!marcado) return setForm((f) => ({ ...f, usarLocal: false }));
@@ -63,8 +76,30 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
       }
     >
       <div className="space-y-3.5 pt-1">
+        <Campo label="Tipo de contratação" ajuda={TIPOS_VAGA.find((t) => t.id === tipo)?.ajuda}>
+          <div className="grid grid-cols-3 gap-2" role="radiogroup">
+            {TIPOS_VAGA.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={tipo === t.id}
+                onClick={() => escolherTipo(t.id)}
+                className={`py-2.5 px-1 rounded-xl border-2 text-[12.5px] font-bold leading-tight ${tipo === t.id ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </Campo>
+
         <Campo label="O que você precisa?">
-          <Field placeholder="Ex.: Garçom para casamento" maxLength={120} value={form.title} onChange={set("title")} />
+          <Field
+            placeholder={tipo === "temporario" ? "Ex.: Vendedor(a) para o fim de ano" : tipo === "freela" ? "Ex.: Criar logotipo e artes para Instagram" : "Ex.: Garçom para casamento"}
+            maxLength={120}
+            value={form.title}
+            onChange={set("title")}
+          />
         </Campo>
 
         <Campo label="Categoria">
@@ -77,15 +112,64 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
 
         <div className="grid grid-cols-2 gap-2.5">
           <Campo label="Valor (R$)">
-            <Field placeholder="150,00" inputMode="decimal" value={form.value} onChange={set("value")} />
+            <Field placeholder={tipo === "temporario" ? "1.800,00" : "150,00"} inputMode="decimal" value={form.value} onChange={set("value")} />
           </Campo>
-          <Campo label="Data">
-            <input type="date" min={hojeISO()} value={form.dateISO} onChange={set("dateISO")} className={selectCls} />
+          <Campo label="Valor é">
+            <select value={form.valorUnidade} onChange={set("valorUnidade")} className={selectCls}>
+              {UNIDADES_VALOR.filter((u) => unidades.includes(u.id)).map((u) => (
+                <option key={u.id} value={u.id}>{u.label}</option>
+              ))}
+            </select>
           </Campo>
         </div>
-        <Campo label="Horário (opcional)">
-          <Field placeholder="Ex.: 18h às 23h" maxLength={60} value={form.timeLabel} onChange={set("timeLabel")} />
-        </Campo>
+
+        {tipo === "temporario" ? (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Campo label="Início">
+                <input type="date" min={hojeISO()} value={form.dateISO} onChange={set("dateISO")} className={selectCls} />
+              </Campo>
+              <Campo label="Término">
+                <input type="date" min={form.dateISO || hojeISO()} value={form.dataFimISO} onChange={set("dataFimISO")} className={selectCls} />
+              </Campo>
+            </div>
+            <Campo label="Carga horária / escala (opcional)">
+              <Field placeholder="Ex.: 44h semanais, seg a sáb 8h–14h" maxLength={80} value={form.cargaHoraria} onChange={set("cargaHoraria")} />
+            </Campo>
+            <Campo label="Regime">
+              <select value={form.regime} onChange={set("regime")} className={selectCls}>
+                {REGIMES.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+            </Campo>
+          </>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Campo label={tipo === "freela" ? "Entrega até" : "Data"}>
+              <input type="date" min={hojeISO()} value={form.dateISO} onChange={set("dateISO")} className={selectCls} />
+            </Campo>
+            <Campo label="Horário (opcional)">
+              <Field placeholder={tipo === "freela" ? "Ex.: Flexível" : "Ex.: 18h às 23h"} maxLength={60} value={form.timeLabel} onChange={set("timeLabel")} />
+            </Campo>
+          </div>
+        )}
+
+        {tipo !== "freela" && (
+          <Campo label="Quantas pessoas você precisa?" ajuda="Cada pessoa aceita recebe a própria vaga; as outras continuam abertas.">
+            <input type="number" min={1} max={50} inputMode="numeric" value={form.quantidade} onChange={set("quantidade")} className={selectCls} />
+          </Campo>
+        )}
+
+        {tipo === "freela" && (
+          <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-white">
+            <input type="checkbox" checked={form.remoto} onChange={(e) => setForm((f) => ({ ...f, remoto: e.target.checked }))} className="mt-0.5 w-5 h-5 shrink-0 accent-emerald-600" />
+            <span className="text-[12.5px] text-slate-600 leading-snug">
+              <span className="font-bold text-slate-700 block">Pode ser feito à distância (remoto)</span>
+              Bom para design, conteúdo, edição de vídeo e tecnologia.
+            </span>
+          </label>
+        )}
 
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-[12px] text-emerald-800 leading-snug flex gap-2">
           <ShieldCheck size={16} className="shrink-0 mt-0.5" />
@@ -94,9 +178,11 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
           </span>
         </div>
 
-        <Campo label="Bairro / região">
-          <Field placeholder="Ex.: Centro (sem rua e número)" maxLength={80} value={form.neighborhood} onChange={set("neighborhood")} />
-        </Campo>
+        {!form.remoto && (
+          <Campo label="Bairro / região">
+            <Field placeholder="Ex.: Centro (sem rua e número)" maxLength={80} value={form.neighborhood} onChange={set("neighborhood")} />
+          </Campo>
+        )}
         <div className="grid grid-cols-[1fr_96px] gap-2.5">
           <Campo label="Cidade">
             <Field placeholder="Ex.: Cacoal" maxLength={80} value={form.city} onChange={set("city")} />
@@ -128,7 +214,7 @@ export function PublishModal({ onClose, onPublish, profile, posicao, onPedirPosi
             maxLength={1000}
             value={form.details}
             onChange={set("details")}
-            placeholder="Função, traje, experiência desejada…"
+            placeholder={tipo === "temporario" ? "Funções, requisitos, benefícios (vale-transporte, alimentação)…" : tipo === "freela" ? "O que precisa ser entregue, referências, formato dos arquivos…" : "Função, traje, experiência desejada…"}
             className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-[16px] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
           />
         </Campo>

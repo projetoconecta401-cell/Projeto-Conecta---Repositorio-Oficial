@@ -11,7 +11,7 @@ const PUBLICO = "id, nome, avatar_url, areas, criado_em";
 const CURRICULO = "id, sobre, formacao, experiencias, cursos";
 
 /* Mini currículo de vários perfis (colunas novas: se o banco ainda não tiver, segue sem). */
-async function curriculos(ids, colunas = CURRICULO) {
+export async function curriculos(ids, colunas = CURRICULO) {
   const unicos = [...new Set(ids.filter(Boolean))];
   if (!unicos.length) return {};
   const { data, error } = await supabase.from("profiles").select(colunas).in("id", unicos);
