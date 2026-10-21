@@ -200,6 +200,11 @@ export function ConversationChatScreen({ conversaId, userId, jobs, onBack, onRea
           {/* Mensagens (rolam por dentro) */}
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-2" aria-live="polite">
             <DicasSeguranca chave={conversaId} />
+            {job && (
+              <p className="text-center text-[11.5px] text-slate-400 px-4 leading-snug">
+                🔒 Para sua privacidade, esta conversa e os áudios são apagados automaticamente depois que a diária for concluída e avaliada.
+              </p>
+            )}
             {messages.length === 0 && (
               <p className="text-center text-[12.5px] text-slate-400 mt-6 px-6">
                 Diga olá e combine os detalhes. O endereço exato só deve ser passado aqui, depois de fechar a diária.

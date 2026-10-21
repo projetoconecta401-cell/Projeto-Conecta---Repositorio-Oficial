@@ -5,7 +5,7 @@
  * todos os usuários terão de aceitar de novo.
  */
 
-export const VERSAO_TERMO = "1.2-2026-10-21";
+export const VERSAO_TERMO = "1.3-2026-10-21";
 export const DATA_TERMO = "21 de outubro de 2026";
 export const LINK_LEI = "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm";
 export const CONTATO = "projetoconecta401@gmail.com";
@@ -71,6 +71,7 @@ export const SECOES_TERMO = [
     titulo: "6. Por quanto tempo guardamos (arts. 15 e 16)",
     paragrafos: [
       "Enquanto sua conta estiver ativa. Ao excluir a conta, apagamos perfil, vagas, conversas, áudios e avaliações vinculados a ela, exceto o que a lei obrigar a manter.",
+      "Conversas de vagas (mensagens e áudios) são apagadas automaticamente quando a diária é concluída e as duas pessoas avaliam, ou 7 dias após a conclusão. Se houver denúncia em análise, a conversa é guardada só até o fim da análise.",
     ],
   },
   {

@@ -5,7 +5,7 @@
  * - Chamadas ao Supabase (outro domínio) NUNCA passam pelo cache.
  * - Web Push: mostra o aviso de nova vaga e abre o app ao tocar.
  */
-const VERSAO = "eifreela-v2.8.1";
+const VERSAO = "eifreela-v2.9.0";
 const CACHE_APP = `${VERSAO}-paginas`;
 const CACHE_ESTATICO = `${VERSAO}-estatico`;
 const ESQUELETO = ["/", "/app/", "/manifest.json", "/favicon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];

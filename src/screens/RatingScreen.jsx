@@ -120,6 +120,9 @@ export function RatingScreen({ job, userId, onBack, onSubmitted }) {
         <GreenButton className="mt-6" disabled={!stars || !wouldWorkAgain || saving} onClick={enviar}>
           {saving ? "Enviando…" : "Enviar avaliação"}
         </GreenButton>
+        <p className="mt-3 text-[11.5px] text-slate-400 text-center leading-snug">
+          Quando as duas pessoas avaliarem, a conversa desta diária (mensagens e áudios) é apagada para proteger sua privacidade.
+        </p>
       </div>
     </Screen>
   );
