@@ -1,4 +1,4 @@
-import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound, FileUser } from "lucide-react";
+import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound, FileUser, MessageSquareHeart } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Field, Screen, TopBar } from "../../components/ui.jsx";
 import { CartaoPush } from "../../components/CartaoPush.jsx";
@@ -7,7 +7,7 @@ import { cpfOculto, mascaraTelefone } from "../../lib/validacao.js";
 import { lerCurriculo, temCurriculo } from "../../lib/curriculo.js";
 
 export function AccountScreen({
-  mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade,
+  mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade, onOpenAvaliarApp,
   temSenha = true, iniciarExclusao = false, profile, onEditProfile,
 }) {
   const [confirming, setConfirming] = useState(iniciarExclusao);
@@ -138,6 +138,7 @@ export function AccountScreen({
             { icon: KeyRound, label: temSenha ? "Alterar senha" : "Criar senha", onClick: onOpenSenha },
             { icon: ShieldCheck, label: "Privacidade e LGPD", onClick: onOpenPrivacidade },
             { icon: Ban, label: "Pessoas bloqueadas", onClick: onOpenBloqueados },
+            { icon: MessageSquareHeart, label: "Avaliar o EiFreela e sugerir melhorias", onClick: onOpenAvaliarApp },
           ].map((it) => {
             const Icon = it.icon;
             return (

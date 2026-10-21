@@ -31,6 +31,7 @@ export const SECOES_TERMO = [
       "Cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp, foto de perfil e áreas de atuação.",
       "Resumo profissional (opcional): apresentação, escolaridade, curso, instituição, situação (cursando ou concluído), experiências e cursos que você decidir informar.",
       "Login com Google ou Facebook (se você escolher): nome, e-mail e foto pública fornecidos pelo provedor. Não recebemos sua senha.",
+      "Avaliação do aplicativo (opcional): nota, se recomendaria e sugestões de melhoria. Usada só para melhorar o EiFreela e em resultados gerais, sem identificar você.",
       "Uso do app: vagas, candidaturas, mensagens de texto e de áudio, avaliações, denúncias, bloqueios, notificações e horário do último acesso.",
       "Localização aproximada (opcional): arredondada para cerca de 1 km, só para mostrar a distância das vagas. A posição exata nunca é gravada.",
       "Não coletamos dados bancários, de cartão, chaves PIX nem dados pessoais sensíveis (art. 5º, II).",

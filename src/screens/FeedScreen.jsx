@@ -12,15 +12,34 @@ import { UserAvatarMenu } from "../components/UserAvatarMenu.jsx";
 import BotaoInstalar from "../components/BotaoInstalar.jsx";
 import { useBloqueados } from "../components/Seguranca.jsx";
 import { CATEGORIES } from "../data/catalogo.js";
+import { adiarConvite, deveConvidar } from "../lib/avaliacaoApp.js";
 import { distanciaDaVaga } from "../lib/geo.js";
 import { listarProfissionais } from "../lib/perfis.js";
 import { hojeISO } from "../lib/vagas.js";
 
 const GRADE = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
 
+/* Convite discreto para avaliar o app (some ao avaliar ou ao tocar "Agora não" por 7 dias). */
+function ConviteAvaliarApp({ profile, onAbrir }) {
+  const [mostrar, setMostrar] = useState(() => !!onAbrir && deveConvidar(profile));
+  if (!mostrar) return null;
+  return (
+    <div className="px-5 mt-4">
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+        <p className="text-[13.5px] font-bold text-slate-800">O que está achando do EiFreela?</p>
+        <p className="text-[12.5px] text-slate-600 mt-0.5">Dê uma nota e conte o que podemos melhorar. Leva 1 minuto.</p>
+        <div className="flex gap-2 mt-3">
+          <button onClick={onAbrir} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-[12.5px] font-bold">Avaliar agora</button>
+          <button onClick={() => { adiarConvite(); setMostrar(false); }} className="px-3 py-2 rounded-xl text-slate-500 text-[12.5px] font-semibold">Agora não</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FeedScreen({
   mode, jobs, loading, userId, posicao, onPedirPosicao, onOpenJob, onPublish, onDeleteJob, onOpenProfile, savedJobIds,
-  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile,
+  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile, onAvaliarApp,
 }) {
   const [tab, setTab] = useState("vagas");
   const [showPublish, setShowPublish] = useState(false);
@@ -244,6 +263,8 @@ export function FeedScreen({
                 </button>
               </div>
             )}
+
+            <ConviteAvaliarApp profile={profile} onAbrir={onAvaliarApp} />
 
             {/* Filtros */}
             <div className="px-5 mt-4 flex items-center gap-2 overflow-x-auto no-scrollbar">

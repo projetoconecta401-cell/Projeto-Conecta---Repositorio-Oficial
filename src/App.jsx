@@ -8,6 +8,7 @@ import { iniciarPresenca } from "./lib/presenca.js";
 import { carregarBloqueados } from "./lib/seguranca.js";
 import { useBloqueados } from "./components/Seguranca.jsx";
 import { BloqueadosScreen } from "./screens/account/BloqueadosScreen.jsx";
+import { AvaliarAppScreen } from "./screens/account/AvaliarAppScreen.jsx";
 import { AlterarSenhaScreen } from "./screens/account/AlterarSenhaScreen.jsx";
 import { PrivacidadeScreen } from "./screens/account/PrivacidadeScreen.jsx";
 import { temSenhaPropria } from "./lib/auth.js";
@@ -362,6 +363,7 @@ function App({ session, perfil, onPerfilAlterado }) {
         onViewProfile={() => go("account")}
         onLogout={handleLogout}
         profile={profile}
+        onAvaliarApp={() => go("avaliarApp")}
       />
     );
   else if (screen === "jobDetail") {
@@ -407,6 +409,7 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenBloqueados={() => go("bloqueados")}
         onOpenSenha={() => go("senha")}
         onOpenPrivacidade={() => go("privacidade")}
+        onOpenAvaliarApp={() => go("avaliarApp")}
         temSenha={temSenhaPropria(session.user)}
         iniciarExclusao={!!nav.excluir}
         profile={profile}
@@ -459,6 +462,8 @@ function App({ session, perfil, onPerfilAlterado }) {
     );
   else if (screen === "bloqueados")
     content = <BloqueadosScreen onBack={back} onAviso={pushToast} />;
+  else if (screen === "avaliarApp")
+    content = <AvaliarAppScreen modo={modo} onBack={back} onAviso={pushToast} />;
   else if (screen === "senha")
     content = <AlterarSenhaScreen session={session} onBack={back} onAviso={pushToast} />;
   else if (screen === "privacidade")

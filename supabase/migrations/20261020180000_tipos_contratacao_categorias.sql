@@ -1,4 +1,4 @@
--- EiFreela · Mais categorias, tipos de contratação e avaliações anônimas
+-- EiFreela · Mais categorias, tipos de contratação, avaliações anônimas e avaliação do app
 --  1) Categorias novas (design, criação de conteúdo, vendas, temporários etc.).
 --     "Design/Digital" passa a se chamar "Design gráfico".
 --  2) Tipo da vaga: diária, temporário (ex.: fim de ano) ou freela/projeto,
@@ -8,6 +8,7 @@
 --     quantidade NULL = "sem número fixo": o contratante aceita quantas pessoas quiser
 --     e encerra a vaga quando completar a equipe.
 --  4) Avaliações anônimas: não dá para ver quem avaliou nem em qual vaga.
+--  5) Avaliação do aplicativo pelos usuários, com pontos de melhoria.
 
 -- ------------------------------------------------------------ 1) categorias --
 alter table public.vagas drop constraint if exists vagas_categoria_check;
@@ -223,3 +224,46 @@ revoke execute on function public.minhas_avaliacoes_feitas() from public, anon;
 revoke execute on function public.minhas_avaliacoes_recebidas() from public, anon;
 grant execute on function public.minhas_avaliacoes_feitas() to authenticated;
 grant execute on function public.minhas_avaliacoes_recebidas() to authenticated;
+
+-- ------------------------------------------------- 5) avaliação do aplicativo --
+-- Nota de 1 a 5, se recomendaria, pontos a melhorar e sugestão livre.
+-- Cada pessoa só vê as próprias respostas; a equipe vê tudo pelo painel do Supabase.
+create table if not exists public.avaliacoes_app (
+  id uuid primary key default gen_random_uuid(),
+  criado_em timestamptz not null default now(),
+  usuario_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  nota smallint not null check (nota between 1 and 5),
+  recomendaria text check (recomendaria in ('sim', 'talvez', 'nao')),
+  melhorias text[] not null default '{}' check (cardinality(melhorias) <= 12),
+  sugestao text check (char_length(sugestao) <= 1000),
+  modo text check (modo in ('trabalhar', 'contratar')),
+  versao_app text check (char_length(versao_app) <= 40)
+);
+create index if not exists avaliacoes_app_usuario_idx on public.avaliacoes_app (usuario_id, criado_em desc);
+
+alter table public.avaliacoes_app enable row level security;
+
+drop policy if exists "Vejo minhas avaliações do app" on public.avaliacoes_app;
+create policy "Vejo minhas avaliações do app" on public.avaliacoes_app
+  for select to authenticated using (usuario_id = (select auth.uid()));
+
+-- No máximo 3 respostas por dia por pessoa (evita spam).
+drop policy if exists "Avalio o app" on public.avaliacoes_app;
+create policy "Avalio o app" on public.avaliacoes_app
+  for insert to authenticated with check (
+    usuario_id = (select auth.uid())
+    and (select count(*) from public.avaliacoes_app a
+          where a.usuario_id = (select auth.uid()) and a.criado_em > now() - interval '24 hours') < 3
+  );
+
+revoke all on public.avaliacoes_app from anon, authenticated;
+grant select on public.avaliacoes_app to authenticated;
+grant insert (nota, recomendaria, melhorias, sugestao, modo, versao_app) on public.avaliacoes_app to authenticated;
+
+-- Resumo para a equipe (ex.: banner da culminância). Só o painel/serviço acessa.
+create or replace view public.resumo_avaliacoes_app with (security_invoker = true) as
+  select count(*)::int as respostas,
+         round(avg(nota), 2) as nota_media,
+         round(100.0 * count(*) filter (where recomendaria = 'sim') / nullif(count(*) filter (where recomendaria is not null), 0), 1) as pct_recomendaria
+  from public.avaliacoes_app;
+revoke all on public.resumo_avaliacoes_app from anon, authenticated;
