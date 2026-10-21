@@ -4,13 +4,13 @@ import { mensagemDeErro, supabase } from "./supabase.js";
  * Perfis (tabela profiles). Campos: nome, CPF, e-mail, nascimento, telefone/WhatsApp,
  * avatar e áreas de atuação. Nenhum dado bancário.
  * CPF, e-mail, nascimento e telefone só o dono lê (função meu_perfil); para os outros
- * usuários o banco libera apenas nome, foto, áreas e o mini currículo (opcional).
+ * usuários o banco libera apenas nome, foto, áreas e o resumo profissional (opcional).
  */
 
 const PUBLICO = "id, nome, avatar_url, areas, criado_em";
 const CURRICULO = "id, sobre, formacao, experiencias, cursos";
 
-/* Mini currículo de vários perfis (colunas novas: se o banco ainda não tiver, segue sem). */
+/* Resumo profissional de vários perfis (colunas novas: se o banco ainda não tiver, segue sem). */
 export async function curriculos(ids, colunas = CURRICULO) {
   const unicos = [...new Set(ids.filter(Boolean))];
   if (!unicos.length) return {};
@@ -87,26 +87,25 @@ export async function perfisPorId(ids) {
   return Object.fromEntries((data ?? []).map((p) => [p.id, p]));
 }
 
-/** Perfil público + avaliações recebidas (com nome de quem avaliou e título da vaga). */
+/** Perfil público + avaliações recebidas (anônimas: sem quem avaliou nem a vaga). */
 export async function perfilPublico(id) {
   const [{ data: perfil }, notas, { data: avals }, cvs] = await Promise.all([
     supabase.from("profiles").select(PUBLICO).eq("id", id).maybeSingle(),
     notasDosPerfis(),
     supabase
       .from("avaliacoes")
-      .select("id, nota, comentario, criado_em, avaliador_id, vaga_id, vagas(titulo)")
+      .select("id, nota, comentario, criado_em")
       .eq("avaliado_id", id)
       .order("criado_em", { ascending: false })
       .limit(50),
     curriculos([id]),
   ]);
   if (!perfil) return null;
-  const autores = await perfisPorId((avals ?? []).map((a) => a.avaliador_id));
   return {
     ...perfil,
     ...(cvs[id] ?? {}),
     nota: notas[id] ?? null,
-    avaliacoes: (avals ?? []).map((a) => ({ ...a, autor: autores[a.avaliador_id] ?? null })),
+    avaliacoes: avals ?? [],
   };
 }
 

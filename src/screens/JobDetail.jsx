@@ -16,7 +16,7 @@ import { timeAgo } from "../lib/time.js";
 
 const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-/* Pessoa (contratante, candidato ou contratado) com nota e, se houver, resumo do mini currículo. */
+/* Pessoa (contratante, candidato ou contratado) com nota e, se houver, resumo profissional. */
 function LinhaPessoa({ perfil, nota, cv, onOpen, children }) {
   const formacao = resumoFormacao(cv?.formacao);
   const exp = cv?.experiencias?.[0];
@@ -50,7 +50,7 @@ function LinhaPessoa({ perfil, nota, cv, onOpen, children }) {
             </span>
           )}
           {cv.sobre && <span className="text-[12px] text-slate-500 italic line-clamp-2 break-words">“{cv.sobre}”</span>}
-          <span className="text-[11.5px] font-bold text-emerald-700">Ver currículo completo</span>
+          <span className="text-[11.5px] font-bold text-emerald-700">Ver resumo completo</span>
         </button>
       )}
     </div>

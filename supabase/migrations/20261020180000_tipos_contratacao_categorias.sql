@@ -1,4 +1,4 @@
--- EiFreela · Mais categorias e tipos de contratação
+-- EiFreela · Mais categorias, tipos de contratação e avaliações anônimas
 --  1) Categorias novas (design, criação de conteúdo, vendas, temporários etc.).
 --     "Design/Digital" passa a se chamar "Design gráfico".
 --  2) Tipo da vaga: diária, temporário (ex.: fim de ano) ou freela/projeto,
@@ -7,6 +7,7 @@
 --     para ela (contratar_candidato). Assim check-in, check-out e avaliação seguem iguais.
 --     quantidade NULL = "sem número fixo": o contratante aceita quantas pessoas quiser
 --     e encerra a vaga quando completar a equipe.
+--  4) Avaliações anônimas: não dá para ver quem avaliou nem em qual vaga.
 
 -- ------------------------------------------------------------ 1) categorias --
 alter table public.vagas drop constraint if exists vagas_categoria_check;
@@ -198,3 +199,27 @@ end
 $$;
 revoke execute on function public.contratar_candidato(uuid, uuid) from public, anon;
 grant execute on function public.contratar_candidato(uuid, uuid) to authenticated;
+
+-- ------------------------------------------------------- 4) avaliações anônimas --
+-- Ninguém (pelo app) consegue ver quem avaliou nem em qual vaga. Cada pessoa só vê,
+-- pelas funções abaixo, as avaliações que ela mesma fez ou recebeu.
+revoke select on public.avaliacoes from anon, authenticated;
+grant select (id, avaliado_id, nota, comentario, criterios, trabalharia_novamente, criado_em)
+  on public.avaliacoes to authenticated;
+
+create or replace function public.minhas_avaliacoes_feitas()
+returns setof uuid language sql stable security definer set search_path = '' as $$
+  select vaga_id from public.avaliacoes where avaliador_id = (select auth.uid());
+$$;
+
+create or replace function public.minhas_avaliacoes_recebidas()
+returns table (vaga_id uuid, nota numeric, comentario text, criado_em timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select a.vaga_id, a.nota::numeric, a.comentario, a.criado_em
+  from public.avaliacoes a where a.avaliado_id = (select auth.uid());
+$$;
+
+revoke execute on function public.minhas_avaliacoes_feitas() from public, anon;
+revoke execute on function public.minhas_avaliacoes_recebidas() from public, anon;
+grant execute on function public.minhas_avaliacoes_feitas() to authenticated;
+grant execute on function public.minhas_avaliacoes_recebidas() to authenticated;

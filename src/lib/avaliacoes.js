@@ -23,12 +23,17 @@ export async function avaliar({ vagaId, avaliadoId, nota, criterios, trabalharia
 
 /** Ids das vagas em que eu já avaliei a outra parte. */
 export async function vagasJaAvaliadas(userId) {
-  const { data } = await supabase.from("avaliacoes").select("vaga_id").eq("avaliador_id", userId).limit(500);
-  return new Set((data ?? []).map((a) => a.vaga_id));
+  // Quem avaliou é anônimo para os outros: o banco só devolve as minhas pela função.
+  const { data, error } = await supabase.rpc("minhas_avaliacoes_feitas");
+  if (!error) return new Set(data ?? []);
+  const { data: antigo } = await supabase.from("avaliacoes").select("vaga_id").eq("avaliador_id", userId).limit(500);
+  return new Set((antigo ?? []).map((a) => a.vaga_id));
 }
 
 /** Avaliações que recebi, por vaga: { [vagaId]: { nota, comentario } }. */
 export async function avaliacoesRecebidas(userId) {
+  const r = await supabase.rpc("minhas_avaliacoes_recebidas");
+  if (!r.error) return Object.fromEntries((r.data ?? []).map((a) => [a.vaga_id, a]));
   const { data } = await supabase
     .from("avaliacoes")
     .select("vaga_id, nota, comentario, criado_em")

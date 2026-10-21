@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Screen, TopBar, Field, Campo, PrimaryButton, SecondaryButton } from "../../components/ui.jsx";
 import { FotoPerfil, RequisitosSenha, SeletorAreas } from "../../components/CamposPerfil.jsx";
 import { cadastrar, enviarCodigo } from "../../lib/auth.js";
+import { BotoesSociais } from "../../components/BotoesSociais.jsx";
 import { guardarAvatarPendente } from "../../lib/perfis.js";
 import { dataMaxima18, mascaraCPF, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/validacao.js";
 
@@ -99,6 +100,7 @@ function EtapaCodigo({ dados, onVoltar }) {
 }
 
 export function CadastroScreen({ onBack, onOpenTerms }) {
+  const [erroSocial, setErroSocial] = useState("");
   const [d, setD] = useState(VAZIO);
   const [foto, setFoto] = useState(null);
   const [aceite, setAceite] = useState(false);
@@ -154,8 +156,20 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
       <TopBar title="Criar conta" onBack={onBack} />
       {/* Erro 1: a página rola normalmente — todos os campos e o botão final ficam acessíveis. */}
       <div className="flex-1 w-full max-w-md mx-auto px-6 pt-5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4">
+        <div className="p-4 rounded-2xl bg-white border border-slate-100 space-y-3">
+          <p className="text-[13px] font-bold text-slate-700 text-center">Cadastro rápido com</p>
+          <BotoesSociais onErro={setErroSocial} cadastro />
+          {erroSocial && <p className="text-[12px] text-red-500 font-semibold text-center">{erroSocial}</p>}
+          <p className="text-[11.5px] text-slate-400 text-center">Depois você completa CPF, telefone e áreas de atuação.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-px bg-slate-200 flex-1" />
+          <span className="text-[12px] text-slate-400">ou preencha seus dados</span>
+          <div className="h-px bg-slate-200 flex-1" />
+        </div>
         <p className="text-[13px] text-slate-500">
-          Preencha seus dados. No fim, confirmamos seu e-mail com um código.
+          No fim, confirmamos seu e-mail com um código.
         </p>
 
         <FotoPerfil blob={foto} nome={d.nome} onChange={setFoto} />

@@ -1,12 +1,14 @@
-import { MessageSquare, Star, History, AlertTriangle, EllipsisVertical, Ban } from "lucide-react";
+import { MessageSquare, Star, History, AlertTriangle, EllipsisVertical, Ban, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar, Carregando, EmptyState, Estrelas, PrimaryButton, Screen, TopBar } from "../../components/ui.jsx";
 import { perfilPublico } from "../../lib/perfis.js";
-import { timeAgo } from "../../lib/time.js";
 import { AcoesPessoaSheet, useBloqueados } from "../../components/Seguranca.jsx";
 import { CurriculoView } from "../../components/Curriculo.jsx";
 
-/* Perfil público: nome, foto, áreas, mini currículo e avaliações recebidas (sem dados pessoais). */
+/* Só mês e ano: a data exata ajudaria a descobrir quem avaliou. */
+const mesAno = (iso) => new Date(iso).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+/* Perfil público: nome, foto, áreas, resumo profissional e avaliações recebidas (sem dados pessoais). */
 export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, onAviso }) {
   const [p, setP] = useState(undefined);
   const [menu, setMenu] = useState(false);
@@ -79,9 +81,10 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, o
         <CurriculoView c={p} />
 
         <div>
-          <p className="text-[12.5px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
+          <p className="text-[12.5px] font-bold text-slate-600 mb-1 flex items-center gap-1.5">
             <History size={14} /> Avaliações recebidas
           </p>
+          <p className="text-[11.5px] text-slate-400 mb-2">Para proteger quem avalia, o nome não aparece.</p>
           {p.avaliacoes.length === 0 ? (
             <p className="text-[12.5px] text-slate-400">As avaliações aparecem depois que uma diária é concluída.</p>
           ) : (
@@ -89,12 +92,12 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, o
               {p.avaliacoes.map((a) => (
                 <div key={a.id} className="p-3.5 rounded-xl bg-white border border-slate-100 space-y-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar url={a.autor?.avatar_url} nome={a.autor?.nome} size={32} />
+                    <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                      <UserRound size={17} />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-semibold text-slate-800 truncate">{a.autor?.nome ?? "Usuário"}</span>
-                      <span className="block text-[11px] text-slate-400 truncate">
-                        {a.vagas?.titulo ?? "Diária"} · {timeAgo(new Date(a.criado_em))}
-                      </span>
+                      <span className="block text-[13px] font-semibold text-slate-800 truncate">Avaliação anônima</span>
+                      <span className="block text-[11px] text-slate-400 truncate">{mesAno(a.criado_em)}</span>
                     </span>
                     <Estrelas valor={a.nota} />
                   </div>

@@ -100,7 +100,7 @@ export function AccountScreen({
             <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0"><FileUser size={20} /></span>
             <span className="min-w-0 flex-1">
               <span className="block font-bold text-emerald-900 text-[14px]">
-                {temCurriculo(lerCurriculo(profile)) ? "Mini currículo" : "Monte seu mini currículo"}
+                {temCurriculo(lerCurriculo(profile)) ? "Resumo profissional" : "Monte seu resumo profissional"}
               </span>
               <span className="block text-[12px] text-emerald-800/80 leading-snug">
                 {temCurriculo(lerCurriculo(profile))

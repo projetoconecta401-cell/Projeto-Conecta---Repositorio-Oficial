@@ -7,13 +7,13 @@ import { cpfOculto, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/
 import { CurriculoEditor } from "../../components/Curriculo.jsx";
 import { lerCurriculo, prepararCurriculo } from "../../lib/curriculo.js";
 
-/* Edita nome, telefone, áreas, foto e o mini currículo (opcional). CPF e e-mail não mudam. */
+/* Edita nome, telefone, áreas, foto e o resumo profissional (opcional). CPF e e-mail não mudam. */
 export function EditProfileScreen({ profile, onSaved, onBack }) {
   const [nome, setNome] = useState(profile.nome || "");
   const [telefone, setTelefone] = useState(mascaraTelefone(profile.telefone || ""));
   const [areas, setAreas] = useState(profile.areas || []);
   const [foto, setFoto] = useState(null);
-  // O mini currículo só aparece depois que o banco tiver as colunas novas.
+  // O resumo profissional só aparece depois que o banco tiver as colunas novas.
   const comCurriculo = Object.prototype.hasOwnProperty.call(profile, "sobre");
   const [cv, setCv] = useState(() => lerCurriculo(profile));
   const [erros, setErros] = useState({});
@@ -42,7 +42,7 @@ export function EditProfileScreen({ profile, onSaved, onBack }) {
     <Screen>
       <TopBar title="Editar perfil" onBack={onBack} />
       <div className="flex-1 w-full max-w-md mx-auto px-6 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4">
-        <p className="text-[12.5px] text-slate-500 leading-relaxed">Nome, foto, áreas e o mini currículo aparecem para quem vê seu perfil.</p>
+        <p className="text-[12.5px] text-slate-500 leading-relaxed">Nome, foto, áreas e o resumo profissional aparecem para quem vê seu perfil.</p>
         <FotoPerfil blob={foto} urlAtual={profile.avatar_url} nome={nome} onChange={setFoto} />
         <Campo label="Nome completo" erro={erros.nome}>
           <Field icon={User} value={nome} onChange={(e) => setNome(e.target.value)} invalid={!!erros.nome} />

@@ -45,6 +45,52 @@ export async function entrarComProvedor(provider) {
   }
 }
 
+/*
+ * Google pelo botão oficial (Google Identity Services). A janela do Google mostra
+ * "eifreela.com.br" em vez do endereço técnico do Supabase. O ID do cliente é público.
+ */
+export const GOOGLE_CLIENT_ID = "488976676928-9m2vknagc2gsgtu0q2836nvu25ihipjo.apps.googleusercontent.com";
+
+let gsiPromessa = null;
+export function carregarGoogle() {
+  if (window.google?.accounts?.id) return Promise.resolve(window.google);
+  gsiPromessa ??= new Promise((ok, falha) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = () => (window.google?.accounts?.id ? ok(window.google) : falha(new Error("gsi")));
+    s.onerror = () => { gsiPromessa = null; falha(new Error("gsi")); };
+    document.head.appendChild(s);
+    setTimeout(() => falha(new Error("gsi timeout")), 8000);
+  });
+  return gsiPromessa;
+}
+
+async function sha256Hex(texto) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Desenha o botão do Google em `elemento`. Ao escolher a conta, entra no Supabase. */
+export async function montarBotaoGoogle(elemento, { largura, texto = "continue_with", onErro }) {
+  const google = await carregarGoogle();
+  const nonce = crypto.randomUUID();
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    nonce: await sha256Hex(nonce),
+    use_fedcm_for_button: true,
+    callback: async ({ credential }) => {
+      const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: credential, nonce });
+      if (error) onErro?.("Não foi possível entrar com o Google. Tente de novo.");
+    },
+  });
+  elemento.innerHTML = "";
+  google.accounts.id.renderButton(elemento, {
+    type: "standard", theme: "outline", size: "large", shape: "rectangular",
+    text: texto, logo_alignment: "center", locale: "pt-BR", width: Math.min(400, Math.max(200, Math.round(largura))),
+  });
+}
+
 /* Envia o código de 6 dígitos. finalidade: "cadastro" | "senha". cpf: avisa antes se já está em uso. */
 export async function enviarCodigo(email, finalidade, cpf) {
   const { error } = await supabase.functions.invoke("codigo-email", {

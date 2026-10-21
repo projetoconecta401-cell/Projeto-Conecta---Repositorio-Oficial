@@ -1,5 +1,5 @@
 /*
- * Mini currículo do profissional: sobre mim, formação, experiências e cursos.
+ * Resumo profissional do profissional: sobre mim, formação, experiências e cursos.
  * Tudo opcional e visível para quem está logado (contratantes veem antes de aceitar).
  */
 

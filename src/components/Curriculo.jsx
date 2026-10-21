@@ -17,9 +17,9 @@ export function CurriculoEditor({ valor, onChange, erros = {} }) {
   return (
     <section className="flex flex-col gap-4 pt-2">
       <div>
-        <h2 className="text-[15px] font-extrabold text-slate-800">Mini currículo</h2>
+        <h2 className="text-[15px] font-extrabold text-slate-800">Resumo profissional</h2>
         <p className="text-[12px] text-slate-500 leading-relaxed mt-0.5">
-          Opcional. Aparece no seu perfil para os contratantes e ajuda a ser escolhido. Não coloque CPF, telefone ou endereço aqui.
+          Opcional. Um jeito rápido de mostrar quem você é, sua formação e onde já trabalhou. Aparece no seu perfil e ajuda a ser escolhido. Não coloque CPF, telefone ou endereço aqui.
         </p>
       </div>
 
