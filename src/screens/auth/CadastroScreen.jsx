@@ -252,7 +252,6 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
               <button type="button" onClick={onOpenTerms} className="text-emerald-700 font-bold underline">
                 Termos de Uso, a Política de Privacidade e o Termo de Consentimento (LGPD)
               </button>
-              .
             </span>
           </label>
           {erros.aceite && <p className="text-[12px] text-red-500 font-semibold mt-1.5">{erros.aceite}</p>}
@@ -264,9 +263,13 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
           </p>
         )}
 
+        {!aceite ? (
+          <p className="py-3 px-4 rounded-xl bg-slate-100 text-slate-500 text-[13px] font-semibold text-center">Marque a caixa de aceite acima para continuar</p>
+        ) : (
         <PrimaryButton disabled={enviando} onClick={continuar}>
           {enviando ? "Enviando código…" : "Continuar e confirmar e-mail"}
         </PrimaryButton>
+        )}
         <p className="text-[11.5px] text-slate-400 flex items-start gap-1.5">
           <ShieldCheck size={14} className="shrink-0 text-emerald-500" />
           CPF, telefone e data de nascimento ficam visíveis só para você.

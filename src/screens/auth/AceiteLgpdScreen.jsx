@@ -69,7 +69,11 @@ export function AceiteLgpdScreen({ atualizacao = false, onAceito }) {
           {erro && <p role="alert" className="text-[12px] text-red-500 font-semibold">{erro}</p>}
           <div className="grid grid-cols-[1fr_2fr] gap-2.5">
             <SecondaryButton onClick={sair}>Sair</SecondaryButton>
-            <PrimaryButton disabled={ocupado} onClick={aceitar}>{ocupado ? "Registrando…" : "Li e aceito"}</PrimaryButton>
+            {marcado ? (
+              <PrimaryButton disabled={ocupado} onClick={aceitar}>{ocupado ? "Registrando…" : "Li e aceito"}</PrimaryButton>
+            ) : (
+              <p className="py-3 px-4 rounded-xl bg-slate-100 text-slate-500 text-[13px] font-semibold text-center">Marque a caixa acima para aceitar</p>
+            )}
           </div>
         </div>
       </footer>

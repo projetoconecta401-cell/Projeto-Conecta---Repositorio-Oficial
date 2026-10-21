@@ -122,7 +122,11 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
         {erroGeral && (
           <p role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-[12.5px] text-red-600 font-semibold">{erroGeral}</p>
         )}
-        <PrimaryButton disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar e continuar"}</PrimaryButton>
+        {aceite ? (
+          <PrimaryButton disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar e continuar"}</PrimaryButton>
+        ) : (
+          <p className="py-3 px-4 rounded-xl bg-slate-100 text-slate-500 text-[13px] font-semibold text-center">Marque a caixa de aceite acima para salvar</p>
+        )}
         <SecondaryButton onClick={sair}>Sair</SecondaryButton>
       </div>
     </Screen>

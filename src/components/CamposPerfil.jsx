@@ -108,7 +108,7 @@ export function SeletorAreas({ valor, onChange, erro }) {
               }`}
             >
               <Icon size={16} className="shrink-0" />
-              <span className="truncate">{c.label}</span>
+              <span className="min-w-0 break-words leading-tight text-left">{c.label.replace("/", "/\u200B")}</span>
               {ativo && <Check size={14} className="ml-auto shrink-0" />}
             </button>
           );
