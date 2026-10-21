@@ -57,7 +57,7 @@ export function EditProfileScreen({ profile, onSaved, onBack }) {
             <Field icon={Mail} value={profile.email} disabled className="bg-slate-50 text-slate-500" />
           </Campo>
           <Campo label="CPF" ajuda="Não pode ser alterado.">
-            <Field icon={IdCard} value={cpfOculto(profile.cpf)} disabled className="bg-slate-50 text-slate-500" />
+            <Field icon={IdCard} value={cpfOculto(profile)} disabled className="bg-slate-50 text-slate-500" />
           </Campo>
         </div>
         <p className="text-[11.5px] text-slate-400 flex items-start gap-1.5">

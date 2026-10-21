@@ -19,7 +19,7 @@ export function TermsScreen({ onBack }) {
           <h2 className="font-bold text-slate-800 mb-1.5">Política de Privacidade (LGPD)</h2>
           <p>
             Guardamos somente os dados do seu cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp,
-            foto e áreas de atuação. CPF, e-mail, nascimento e telefone ficam visíveis apenas para você. O EiFreela não
+            foto e áreas de atuação. E-mail e telefone ficam visíveis apenas para você; o CPF é guardado criptografado. O EiFreela não
             pede nem armazena dados bancários. As vagas mostram só a região aproximada. Você pode excluir sua conta e
             todos os seus dados a qualquer momento em Perfil → Excluir conta (Lei nº 13.709/2018).
           </p>

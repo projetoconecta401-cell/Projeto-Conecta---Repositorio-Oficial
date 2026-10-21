@@ -51,7 +51,11 @@ export function mascaraCPF(v) {
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
-export const cpfOculto = (cpf) => (cpf ? `***.***.${String(cpf).slice(6, 9)}-${String(cpf).slice(9)}` : "");
+/* O banco guarda só um hash do CPF e os 2 últimos dígitos (cpf_final). */
+export const cpfOculto = (perfil) => {
+  const final = perfil?.cpf_final ?? (perfil?.cpf ? String(perfil.cpf).slice(-2) : "");
+  return final ? `***.***.***-${final}` : "";
+};
 
 export function mascaraTelefone(v) {
   const d = soDigitos(v).slice(0, 11);

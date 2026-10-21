@@ -104,7 +104,7 @@ export default {
 
     const admin = ctx.supabaseAdmin;
 
-    const { data: cpfUsado } = await admin.from("profiles").select("id").eq("cpf", cpf).maybeSingle();
+    const { data: cpfUsado } = await admin.rpc("cpf_em_uso", { p_cpf: cpf }); // CPF guardado só como hash
     if (cpfUsado) return erro("Este CPF já está cadastrado. Faça login.", 409);
 
     const conferido = await conferirCodigo(admin, email, codigo);

@@ -29,6 +29,7 @@ export const SECOES_TERMO = [
     titulo: "2. Dados que tratamos",
     itens: [
       "Cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp, foto de perfil e áreas de atuação.",
+      "O CPF é guardado de forma irreversível (uma \"impressão digital\" criptográfica e os 2 últimos dígitos), só para impedir contas duplicadas: ninguém, nem a equipe do EiFreela, consegue ver o número completo. A data de nascimento serve apenas para confirmar que você tem 18 anos ou mais e não é guardada.",
       "Resumo profissional (opcional): apresentação, escolaridade, curso, instituição, situação (cursando ou concluído), experiências e cursos que você decidir informar.",
       "Login com Google ou Facebook (se você escolher): nome, e-mail e foto pública fornecidos pelo provedor. Não recebemos sua senha.",
       "Avaliação do aplicativo (opcional): nota, se recomendaria e sugestões de melhoria. Usada só para melhorar o EiFreela e em resultados gerais, sem identificar você.",
@@ -49,7 +50,7 @@ export const SECOES_TERMO = [
   {
     titulo: "4. Com quem compartilhamos (art. 9º, V, e art. 39)",
     itens: [
-      "Outros usuários veem apenas seu nome, foto, áreas de atuação, avaliações (sem mostrar quem avaliou) e o resumo profissional, se você o preencher. CPF, e-mail, nascimento e telefone ficam visíveis só para você.",
+      "Outros usuários veem apenas seu nome, foto, áreas de atuação, avaliações (sem mostrar quem avaliou) e o resumo profissional, se você o preencher. E-mail e telefone ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.",
       "O WhatsApp informado numa vaga aparece apenas para o profissional contratado.",
       "Operadores que guardam e processam os dados em nosso nome: Supabase (banco de dados, arquivos e login) e Vercel (hospedagem do site).",
       "Google e Facebook, somente se você escolher entrar por eles.",

@@ -42,8 +42,8 @@ export function AccountScreen({
 
   const dados = [
     { label: "E-mail", valor: profile.email },
-    { label: "CPF", valor: cpfOculto(profile.cpf) },
-    { label: "Nascimento", valor: profile.data_nascimento ? new Date(profile.data_nascimento + "T12:00:00").toLocaleDateString("pt-BR") : "—" },
+    { label: "CPF", valor: cpfOculto(profile) },
+    { label: "Idade", valor: "Maior de 18 anos" },
     { label: "Telefone / WhatsApp", valor: mascaraTelefone(profile.telefone) },
   ];
 
@@ -71,7 +71,7 @@ export function AccountScreen({
           ))}
         </div>
         <p className="text-[11.5px] text-slate-400 flex items-start gap-1.5 -mt-3">
-          <ShieldCheck size={13} className="shrink-0 mt-px text-emerald-500" /> CPF, e-mail, nascimento e telefone ficam visíveis só para você.
+          <ShieldCheck size={13} className="shrink-0 mt-px text-emerald-500" /> E-mail e telefone ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.
         </p>
 
         <div>

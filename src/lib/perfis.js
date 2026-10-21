@@ -3,7 +3,7 @@ import { mensagemDeErro, supabase } from "./supabase.js";
 /*
  * Perfis (tabela profiles). Campos: nome, CPF, e-mail, nascimento, telefone/WhatsApp,
  * avatar e áreas de atuação. Nenhum dado bancário.
- * CPF, e-mail, nascimento e telefone só o dono lê (função meu_perfil); para os outros
+ * CPF (só hash + 2 últimos dígitos), e-mail e telefone só o dono lê (função meu_perfil); para os outros
  * usuários o banco libera apenas nome, foto, áreas e o resumo profissional (opcional).
  */
 

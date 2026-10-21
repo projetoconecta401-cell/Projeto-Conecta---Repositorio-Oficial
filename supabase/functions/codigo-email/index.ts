@@ -131,7 +131,7 @@ export default {
       if (finalidade === "cadastro") {
         const cpf = String(body.cpf ?? "").replace(/\D/g, "");
         if (cpf.length === 11) {
-          const { data: cpfUsado } = await admin.from("profiles").select("id").eq("cpf", cpf).maybeSingle();
+          const { data: cpfUsado } = await admin.rpc("cpf_em_uso", { p_cpf: cpf }); // CPF guardado só como hash
           if (cpfUsado) return erro("Este CPF já está cadastrado. Faça login.", 409);
         }
       }
