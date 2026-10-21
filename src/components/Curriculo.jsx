@@ -1,6 +1,6 @@
 import { Award, Briefcase, GraduationCap, Plus, Trash2, UserRound } from "lucide-react";
 import { Campo } from "./ui.jsx";
-import { ESCOLARIDADES, LIMITES, SITUACOES, experienciaVazia, resumoFormacao, temCurriculo, temCurso } from "../lib/curriculo.js";
+import { ESCOLARIDADES, LIMITES, SITUACOES, experienciaVazia, formacaoVazia, listaFormacoes, resumoFormacao, temCurriculo, temCurso } from "../lib/curriculo.js";
 
 const caixa =
   "w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-[16px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500";
@@ -10,9 +10,8 @@ const caixa =
 /* ------------------------------------------------------------------ */
 export function CurriculoEditor({ valor, onChange, erros = {} }) {
   const set = (campo, v) => onChange({ ...valor, [campo]: v });
-  const setF = (campo, v) => onChange({ ...valor, formacao: { ...valor.formacao, [campo]: v } });
+  const setF = (i, campo, v) => set("formacoes", valor.formacoes.map((f, k) => (k === i ? { ...f, [campo]: v } : f)));
   const setExp = (i, campo, v) => set("experiencias", valor.experiencias.map((e, k) => (k === i ? { ...e, [campo]: v } : e)));
-  const f = valor.formacao;
 
   return (
     <section className="flex flex-col gap-4 pt-2">
@@ -36,46 +35,53 @@ export function CurriculoEditor({ valor, onChange, erros = {} }) {
         <p className="text-right text-[11px] text-slate-400 mt-1">{valor.sobre.length}/{LIMITES.sobre}</p>
       </Campo>
 
-      {/* Formação */}
+      {/* Formação (várias) */}
       <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white border border-slate-100">
         <p className="text-[13px] font-bold text-slate-700 flex items-center gap-1.5"><GraduationCap size={16} className="text-emerald-600" /> Formação</p>
-        <Campo label="Escolaridade">
-          <select value={f.escolaridade} onChange={(e) => setF("escolaridade", e.target.value)} className={caixa}>
-            <option value="">Selecione</option>
-            {ESCOLARIDADES.map((x) => <option key={x} value={x}>{x}</option>)}
-          </select>
-        </Campo>
-        {temCurso(f.escolaridade) && (
-          <Campo label="Curso" erro={erros.curso}>
-            <input value={f.curso} maxLength={80} onChange={(e) => setF("curso", e.target.value)} placeholder="Ex.: Administração" className={caixa} />
-          </Campo>
-        )}
-        {f.escolaridade && (
-          <>
-            <Campo label="Instituição (opcional)">
-              <input value={f.instituicao} maxLength={80} onChange={(e) => setF("instituicao", e.target.value)} placeholder="Ex.: UNIR, IFRO, Escola Estadual…" className={caixa} />
-            </Campo>
-            <Campo label="Situação">
-              <div className="grid grid-cols-3 gap-2">
-                {SITUACOES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setF("situacao", f.situacao === s ? "" : s)}
-                    aria-pressed={f.situacao === s}
-                    className={`py-2.5 rounded-xl border text-[13px] font-semibold ${f.situacao === s ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white border-slate-200 text-slate-600"}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </Campo>
-            {f.situacao === "Cursando" && (
-              <Campo label="Período ou previsão (opcional)">
-                <input value={f.periodo} maxLength={60} onChange={(e) => setF("periodo", e.target.value)} placeholder="Ex.: 5º semestre, conclusão em 2027" className={caixa} />
-              </Campo>
+        {valor.formacoes.length === 0 && <p className="text-[12px] text-slate-400">Ensino médio, curso técnico, graduação… adicione quantas tiver.</p>}
+        {valor.formacoes.map((f, i) => (
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-bold text-slate-500">Formação {i + 1}</span>
+              <button type="button" onClick={() => set("formacoes", valor.formacoes.filter((_, k) => k !== i))} aria-label="Remover formação" className="p-1.5 rounded-lg text-red-500 hover:bg-red-50">
+                <Trash2 size={16} />
+              </button>
+            </div>
+            <select value={f.escolaridade} onChange={(e) => setF(i, "escolaridade", e.target.value)} aria-label="Escolaridade" className={caixa}>
+              <option value="">Escolaridade</option>
+              {ESCOLARIDADES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            {temCurso(f.escolaridade) && (
+              <input value={f.curso} maxLength={80} onChange={(e) => setF(i, "curso", e.target.value)} placeholder="Curso (ex.: Administração)" className={caixa} />
             )}
-          </>
+            {f.escolaridade && (
+              <>
+                <input value={f.instituicao} maxLength={80} onChange={(e) => setF(i, "instituicao", e.target.value)} placeholder="Instituição (opcional)" className={caixa} />
+                <div className="grid grid-cols-3 gap-2">
+                  {SITUACOES.map((x) => (
+                    <button
+                      key={x}
+                      type="button"
+                      onClick={() => setF(i, "situacao", f.situacao === x ? "" : x)}
+                      aria-pressed={f.situacao === x}
+                      className={`py-2.5 rounded-xl border text-[13px] font-semibold ${f.situacao === x ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white border-slate-200 text-slate-600"}`}
+                    >
+                      {x}
+                    </button>
+                  ))}
+                </div>
+                {f.situacao === "Cursando" && (
+                  <input value={f.periodo} maxLength={60} onChange={(e) => setF(i, "periodo", e.target.value)} placeholder="Período (ex.: 5º semestre)" className={caixa} />
+                )}
+              </>
+            )}
+          </div>
+        ))}
+        {(erros.formacoes || erros.curso) && <p className="text-[12px] text-red-500 font-semibold">{erros.formacoes || erros.curso}</p>}
+        {valor.formacoes.length < LIMITES.formacoes && (
+          <button type="button" onClick={() => set("formacoes", [...valor.formacoes, formacaoVazia()])} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-emerald-300 text-emerald-700 text-[13px] font-bold">
+            <Plus size={16} /> Adicionar formação
+          </button>
         )}
       </div>
 
@@ -133,7 +139,7 @@ export function CurriculoEditor({ valor, onChange, erros = {} }) {
 /* ------------------------------------------------------------------ */
 export function CurriculoView({ c }) {
   if (!temCurriculo(c)) return null;
-  const formacao = resumoFormacao(c.formacao);
+  const formacoes = (c.formacoes ?? listaFormacoes(c.formacao)).map(resumoFormacao).filter(Boolean);
   return (
     <div className="flex flex-col gap-4">
       {c.sobre && (
@@ -141,9 +147,13 @@ export function CurriculoView({ c }) {
           <p className="text-[13.5px] text-slate-600 leading-relaxed whitespace-pre-line break-words">{c.sobre}</p>
         </Bloco>
       )}
-      {formacao && (
+      {formacoes.length > 0 && (
         <Bloco icon={GraduationCap} titulo="Formação">
-          <p className="text-[13.5px] text-slate-700 break-words">{formacao}</p>
+          <ul className="flex flex-col gap-1.5">
+            {formacoes.map((x, i) => (
+              <li key={i} className="pl-3 border-l-2 border-emerald-200 text-[13.5px] text-slate-700 break-words">{x}</li>
+            ))}
+          </ul>
         </Bloco>
       )}
       {c.experiencias?.length > 0 && (

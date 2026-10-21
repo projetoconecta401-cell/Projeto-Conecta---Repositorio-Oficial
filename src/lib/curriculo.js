@@ -16,14 +16,26 @@ export const SITUACOES = ["Cursando", "Concluído", "Incompleto"];
 /* Níveis em que faz sentido informar o nome do curso. */
 export const temCurso = (escolaridade) => ["Curso técnico", "Graduação", "Pós-graduação"].includes(escolaridade);
 
-export const LIMITES = { sobre: 400, experiencias: 5, cursos: 8 };
+export const LIMITES = { sobre: 400, formacoes: 4, experiencias: 5, cursos: 8 };
+
+export const formacaoVazia = () => ({ escolaridade: "", curso: "", instituicao: "", situacao: "", periodo: "" });
 
 export const curriculoVazio = () => ({
   sobre: "",
-  formacao: { escolaridade: "", curso: "", instituicao: "", situacao: "", periodo: "" },
+  formacoes: [],
   experiencias: [],
   cursos: [],
 });
+
+/*
+ * No banco, "formacao" é um objeto: { itens: [ {escolaridade, curso, ...}, ... ] }.
+ * Perfis antigos têm uma formação só ({ escolaridade, curso, ... }); aqui vira lista.
+ */
+export function listaFormacoes(f) {
+  if (!f || typeof f !== "object") return [];
+  const itens = Array.isArray(f.itens) ? f.itens : f.escolaridade ? [f] : [];
+  return itens.filter((x) => x && typeof x === "object").map((x) => ({ ...formacaoVazia(), ...x }));
+}
 
 export const experienciaVazia = () => ({ funcao: "", local: "", periodo: "", descricao: "" });
 
@@ -31,12 +43,10 @@ const txt = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max
 
 /** Lê o que veio do banco (ou de um perfil antigo sem currículo). */
 export function lerCurriculo(p) {
-  const base = curriculoVazio();
-  if (!p) return base;
-  const f = p.formacao && typeof p.formacao === "object" ? p.formacao : {};
+  if (!p) return curriculoVazio();
   return {
     sobre: p.sobre ?? "",
-    formacao: { ...base.formacao, ...f },
+    formacoes: listaFormacoes(p.formacao),
     experiencias: Array.isArray(p.experiencias) ? p.experiencias.map((e) => ({ ...experienciaVazia(), ...e })) : [],
     cursos: Array.isArray(p.cursos) ? p.cursos.filter((c) => typeof c === "string") : [],
   };
@@ -49,13 +59,17 @@ const SENSIVEL = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\(?\d{2}\)?\s?9?\d{4}[-\s]?\d
 export function prepararCurriculo(c) {
   const erros = {};
   const sobre = String(c.sobre ?? "").trim().slice(0, LIMITES.sobre);
-  const formacao = {
-    escolaridade: ESCOLARIDADES.includes(c.formacao?.escolaridade) ? c.formacao.escolaridade : "",
-    curso: temCurso(c.formacao?.escolaridade) ? txt(c.formacao?.curso, 80) : "",
-    instituicao: txt(c.formacao?.instituicao, 80),
-    situacao: SITUACOES.includes(c.formacao?.situacao) ? c.formacao.situacao : "",
-    periodo: c.formacao?.situacao === "Cursando" ? txt(c.formacao?.periodo, 60) : "",
-  };
+  const formacoes = (c.formacoes ?? [])
+    .map((f) => ({
+      escolaridade: ESCOLARIDADES.includes(f.escolaridade) ? f.escolaridade : "",
+      curso: temCurso(f.escolaridade) ? txt(f.curso, 80) : "",
+      instituicao: txt(f.instituicao, 80),
+      situacao: SITUACOES.includes(f.situacao) ? f.situacao : "",
+      periodo: f.situacao === "Cursando" ? txt(f.periodo, 60) : "",
+    }))
+    .filter((f) => f.escolaridade)
+    .slice(0, LIMITES.formacoes);
+  if ((c.formacoes ?? []).some((f) => !f.escolaridade && (f.curso || f.instituicao))) erros.formacoes = "Escolha a escolaridade em cada formação.";
   const experiencias = (c.experiencias ?? [])
     .map((e) => ({ funcao: txt(e.funcao, 60), local: txt(e.local, 60), periodo: txt(e.periodo, 40), descricao: txt(e.descricao, 200) }))
     .filter((e) => e.funcao || e.local || e.descricao)
@@ -63,15 +77,22 @@ export function prepararCurriculo(c) {
   const cursos = (c.cursos ?? []).map((x) => txt(x, 80)).filter(Boolean).slice(0, LIMITES.cursos);
 
   if (experiencias.some((e) => !e.funcao)) erros.experiencias = "Informe a função em cada experiência.";
-  if (temCurso(formacao.escolaridade) && !formacao.curso) erros.curso = "Informe o nome do curso.";
-  const tudo = [sobre, formacao.instituicao, ...experiencias.map((e) => `${e.local} ${e.descricao}`), ...cursos].join(" ");
+  if (formacoes.some((f) => temCurso(f.escolaridade) && !f.curso)) erros.formacoes = "Informe o nome do curso em cada formação.";
+  const tudo = [sobre, ...formacoes.map((f) => f.instituicao), ...experiencias.map((e) => `${e.local} ${e.descricao}`), ...cursos].join(" ");
   if (SENSIVEL.test(tudo)) erros.sobre = "Não coloque CPF, telefone, e-mail ou endereço no currículo: ele fica visível para outros usuários.";
 
-  return { dados: { sobre: sobre || null, formacao, experiencias, cursos }, erros };
+  // Sem campos vazios, para caber folgado no limite do banco.
+  const enxuta = formacoes.map((f) => Object.fromEntries(Object.entries(f).filter(([, v]) => v)));
+  return { dados: { sobre: sobre || null, formacao: { itens: enxuta }, experiencias, cursos }, erros };
 }
 
-/** "Graduação em Administração · Cursando (5º semestre) · UNIR" */
+/** "Graduação em Administração · Cursando (5º semestre) · UNIR" (aceita uma formação ou a lista do banco). */
 export function resumoFormacao(f) {
+  if (f && !f.escolaridade) {
+    const lista = listaFormacoes(f);
+    if (!lista.length) return "";
+    return resumoFormacao(lista[0]) + (lista.length > 1 ? ` · +${lista.length - 1}` : "");
+  }
   if (!f?.escolaridade) return "";
   const nivel = f.curso ? `${f.escolaridade} em ${f.curso}` : f.escolaridade;
   const sit = f.situacao ? (f.situacao === "Cursando" && f.periodo ? `Cursando (${f.periodo})` : f.situacao) : "";
@@ -79,4 +100,4 @@ export function resumoFormacao(f) {
 }
 
 export const temCurriculo = (c) =>
-  !!(c && (c.sobre || c.formacao?.escolaridade || c.experiencias?.length || c.cursos?.length));
+  !!(c && (c.sobre || c.formacoes?.length || listaFormacoes(c.formacao).length || c.experiencias?.length || c.cursos?.length));
