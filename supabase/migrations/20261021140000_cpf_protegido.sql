@@ -20,14 +20,6 @@ returns text language sql stable security definer set search_path = '' as $$
 $$;
 revoke execute on function public.hash_cpf(text) from public, anon, authenticated;
 
--- Usado pelas Edge Functions (chave de serviço) para avisar "CPF já cadastrado".
-create or replace function public.cpf_em_uso(p_cpf text)
-returns boolean language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.profiles where cpf_hash = public.hash_cpf(p_cpf));
-$$;
-revoke execute on function public.cpf_em_uso(text) from public, anon, authenticated;
-grant execute on function public.cpf_em_uso(text) to service_role;
-
 -- 2) Colunas novas e conversão das contas existentes.
 alter table public.profiles
   add column if not exists cpf_hash text,
@@ -53,6 +45,15 @@ alter table public.profiles add constraint profiles_cpf_hash_key unique (cpf_has
 -- Garantia: CPF e nascimento em texto nunca ficam gravados.
 alter table public.profiles drop constraint if exists profiles_sem_dados_brutos;
 alter table public.profiles add constraint profiles_sem_dados_brutos check (cpf is null and data_nascimento is null);
+
+-- Usado pelas Edge Functions (chave de serviço) para avisar "CPF já cadastrado".
+create or replace function public.cpf_em_uso(p_cpf text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.profiles where cpf_hash = public.hash_cpf(p_cpf));
+$$;
+revoke execute on function public.cpf_em_uso(text) from public, anon, authenticated;
+grant execute on function public.cpf_em_uso(text) to service_role;
+
 
 -- 3) Gatilho: converte antes de gravar.
 create or replace function public.proteger_documentos()
