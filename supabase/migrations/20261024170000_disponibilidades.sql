@@ -29,7 +29,7 @@ create table if not exists public.disponibilidades (
   destaque       boolean not null default false,   -- reservado para planos pagos no futuro
   constraint disponibilidades_datas_check check (data_fim is null or data_fim >= data_inicio),
   constraint disponibilidades_horas_check check (horario_inicio is null or horario_fim is null or horario_fim > horario_inicio),
-  constraint disponibilidades_preco_tipo_check check ((preco_tipo = 'combinar') = (preco is null))
+  constraint disponibilidades_valor_combinar_check check ((preco_tipo = 'combinar') = (preco is null))
 );
 
 create index if not exists disponibilidades_mural_idx on public.disponibilidades (status, criado_em desc);
