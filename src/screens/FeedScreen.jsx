@@ -6,6 +6,8 @@ import { FilterModal } from "../components/jobs/FilterModal.jsx";
 import { JobCard } from "../components/jobs/JobCard.jsx";
 import { MyJobCard } from "../components/jobs/MyJobCard.jsx";
 import { MuralServicos } from "../components/disponibilidades/MuralServicos.jsx";
+import { ProfessionalCard } from "../components/jobs/ProfessionalCard.jsx";
+import { listarProfissionais } from "../lib/perfis.js";
 import { MinhasOfertas } from "../components/disponibilidades/MinhasOfertas.jsx";
 import { PublishModal } from "../components/jobs/PublishModal.jsx";
 import { CardsEsqueleto, EmptyState, Screen } from "../components/ui.jsx";
@@ -50,7 +52,7 @@ export function FeedScreen({
     try { sessionStorage.setItem("eifreela:aba", t); } catch { /* sem armazenamento */ }
   };
   useEffect(() => {
-    if ((mode !== "contratar" && (tab === "pros" || tab === "minhas")) || (mode !== "trabalhar" && (tab === "favoritas" || tab === "ofertas"))) setTab("vagas");
+    if ((mode !== "contratar" && (tab === "pros" || tab === "servicos" || tab === "minhas")) || (mode !== "trabalhar" && (tab === "favoritas" || tab === "ofertas"))) setTab("vagas");
   }, [mode, tab]);
   const [showPublish, setShowPublish] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -69,6 +71,14 @@ export function FeedScreen({
   // Se o banco ainda não tiver a coluna, mantém o comportamento antigo.
   const temRegraContratante = !!profile && Object.prototype.hasOwnProperty.call(profile, "contratante_valido");
   const podeVerPros = !temRegraContratante || !!profile?.contratante_valido;
+
+  // Lista de profissionais cadastrados (contratantes): carregada quando a aba é aberta.
+  const [pros, setPros] = useState(null);
+  const [erroPros, setErroPros] = useState("");
+  useEffect(() => {
+    if (tab !== "pros" || pros || !podeVerPros) return;
+    listarProfissionais(userId).then(setPros).catch((err) => setErroPros(err.message));
+  }, [tab, pros, userId, podeVerPros]);
 
 
   const hoje = hojeISO();
@@ -95,6 +105,10 @@ export function FeedScreen({
   const myJobs = jobs.filter((j) => j.isOwner);
   const favoriteJobs = jobs.filter((j) => savedJobIds.includes(j.id));
   const bloqueados = useBloqueados();
+  const prosVisiveis = (pros ?? []).filter((p) => !bloqueados.has(p.id)).filter(
+    (p) => (category === "all" || category === "minhas-areas" || p.areas.includes(category)) &&
+      (!termo || [p.nome, p.cidade, p.uf].some((t) => t && String(t).toLowerCase().includes(termo)))
+  );
 
   const activeCategoryLabel = category === "all" ? null : category === "minhas-areas" ? "suas áreas" : category;
   const activeFilterCount =
@@ -121,7 +135,7 @@ export function FeedScreen({
     { id: "vagas", label: "Mural de Vagas" },
     ...(mode === "contratar" ? [{ id: "minhas", label: "Minhas Vagas" }] : []),
     ...(mode === "trabalhar" ? [{ id: "ofertas", label: "Minhas ofertas" }, { id: "favoritas", label: "Favoritas" }] : []),
-    ...(mode === "contratar" ? [{ id: "pros", label: "Serviços disponíveis" }] : []),
+    ...(mode === "contratar" ? [{ id: "servicos", label: "Serviços disponíveis" }, { id: "pros", label: "Profissionais" }] : []),
   ];
 
   const Chip = ({ ativo, onClick, children }) => (
@@ -188,7 +202,7 @@ export function FeedScreen({
       </header>
 
       <div className="flex-1 pb-28">
-        {(tab === "vagas" || tab === "pros") && (
+        {(tab === "vagas" || tab === "pros" || tab === "servicos") && (
           <>
             <div className="px-5 pt-4">
               <div className="flex items-center gap-2 px-3.5 rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-emerald-500/40">
@@ -197,7 +211,7 @@ export function FeedScreen({
                   type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder={tab === "pros" ? "Buscar serviço (ex.: faxina, babá, design)" : "Buscar por função, bairro ou cidade"}
+                  placeholder={tab === "servicos" ? "Buscar serviço (ex.: faxina, babá, design)" : tab === "pros" ? "Buscar profissional por nome ou cidade" : "Buscar por função, bairro ou cidade"}
                   aria-label="Buscar"
                   className="flex-1 min-w-0 py-3 bg-transparent text-[16px] focus:outline-none"
                 />
@@ -346,7 +360,33 @@ export function FeedScreen({
               </EmptyState>
             ))}
 
-          {tab === "pros" && (
+          {tab === "pros" && !podeVerPros && (
+            <div className="p-5 rounded-2xl bg-white border border-slate-100 text-center flex flex-col items-center gap-3">
+              <span className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Users size={24} /></span>
+              <p className="text-[15px] font-extrabold text-slate-800">Lista disponível para contratantes</p>
+              <p className="text-[13px] text-slate-500 leading-relaxed max-w-sm">
+                Para proteger os profissionais, só contratantes cadastrados (pessoa física ou empresa com CNPJ) podem ver e pesquisar os perfis.
+              </p>
+              <button onClick={onCadastrarContratante} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-[13px] font-bold">
+                Cadastrar como contratante
+              </button>
+            </div>
+          )}
+
+          {tab === "pros" && podeVerPros &&
+            (erroPros ? (
+              <EmptyState icon={Users} title="Não foi possível carregar" text={erroPros} />
+            ) : pros === null ? (
+              <CardsEsqueleto n={3} />
+            ) : prosVisiveis.length ? (
+              <div className={GRADE}>
+                {prosVisiveis.map((p) => <ProfessionalCard key={p.id} p={p} onOpen={onOpenProfile} />)}
+              </div>
+            ) : (
+              <EmptyState icon={Users} title="Nenhum profissional encontrado" text="Quando alguém se cadastrar nessa área, aparece aqui." />
+            ))}
+
+          {tab === "servicos" && (
             <MuralServicos
               userId={userId}
               termo={busca}
