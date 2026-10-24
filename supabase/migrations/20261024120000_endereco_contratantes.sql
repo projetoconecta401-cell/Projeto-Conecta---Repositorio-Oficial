@@ -41,7 +41,7 @@ alter table public.profiles
   add column if not exists uf text check (uf ~ '^[A-Z]{2}$'),
   add column if not exists contratante_tipo text check (contratante_tipo in ('pj', 'pf')),
   add column if not exists empresa text check (char_length(btrim(empresa)) between 2 and 120),
-  add column if not exists cnpj text check (public.cnpj_valido(cnpj)),
+  add column if not exists cnpj text check (cnpj is null or public.cnpj_valido(cnpj)),
   add column if not exists contratante_em timestamptz;
 
 -- PJ precisa de CNPJ; PF não tem CNPJ.
