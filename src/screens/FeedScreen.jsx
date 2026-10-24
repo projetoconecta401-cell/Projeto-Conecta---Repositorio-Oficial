@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilterModal } from "../components/jobs/FilterModal.jsx";
 import { JobCard } from "../components/jobs/JobCard.jsx";
 import { MyJobCard } from "../components/jobs/MyJobCard.jsx";
-import { ProfessionalCard } from "../components/jobs/ProfessionalCard.jsx";
+import { MuralServicos } from "../components/disponibilidades/MuralServicos.jsx";
+import { MinhasOfertas } from "../components/disponibilidades/MinhasOfertas.jsx";
 import { PublishModal } from "../components/jobs/PublishModal.jsx";
 import { CardsEsqueleto, EmptyState, Screen } from "../components/ui.jsx";
 import { UserAvatarMenu } from "../components/UserAvatarMenu.jsx";
@@ -14,7 +15,6 @@ import { useBloqueados } from "../components/Seguranca.jsx";
 import { CATEGORIES } from "../data/catalogo.js";
 import { adiarConvite, deveConvidar } from "../lib/avaliacaoApp.js";
 import { distanciaDaVaga } from "../lib/geo.js";
-import { listarProfissionais } from "../lib/perfis.js";
 import { hojeISO } from "../lib/vagas.js";
 
 const GRADE = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
@@ -39,11 +39,18 @@ function ConviteAvaliarApp({ profile, onAbrir }) {
 
 export function FeedScreen({
   mode, jobs, loading, userId, posicao, onPedirPosicao, onOpenJob, onPublish, onDeleteJob, onOpenProfile, savedJobIds,
-  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile, onAvaliarApp, onCadastrarContratante,
+  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile, onAvaliarApp, onCadastrarContratante, onNovaDisponibilidade, onEditarDisponibilidade, onAbrirDisponibilidade, onInteresseDisponibilidade, versaoOfertas, onAviso,
 }) {
-  const [tab, setTab] = useState("vagas");
+  // A aba aberta é lembrada ao voltar de outra tela (ex.: depois de publicar).
+  const [tab, setTabEstado] = useState(() => {
+    try { return sessionStorage.getItem("eifreela:aba") || "vagas"; } catch { return "vagas"; }
+  });
+  const setTab = (t) => {
+    setTabEstado(t);
+    try { sessionStorage.setItem("eifreela:aba", t); } catch { /* sem armazenamento */ }
+  };
   useEffect(() => {
-    if ((mode !== "contratar" && (tab === "pros" || tab === "minhas")) || (mode !== "trabalhar" && tab === "favoritas")) setTab("vagas");
+    if ((mode !== "contratar" && (tab === "pros" || tab === "minhas")) || (mode !== "trabalhar" && (tab === "favoritas" || tab === "ofertas"))) setTab("vagas");
   }, [mode, tab]);
   const [showPublish, setShowPublish] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -55,8 +62,6 @@ export function FeedScreen({
   const [maxDistance, setMaxDistance] = useState("Qualquer");
   const [date, setDate] = useState("");
   const [busca, setBusca] = useState("");
-  const [pros, setPros] = useState(null);
-  const [erroPros, setErroPros] = useState("");
   const [pedindoLocal, setPedindoLocal] = useState(false);
   const catScrollRef = useRef(null);
 
@@ -65,13 +70,6 @@ export function FeedScreen({
   const temRegraContratante = !!profile && Object.prototype.hasOwnProperty.call(profile, "contratante_valido");
   const podeVerPros = !temRegraContratante || !!profile?.contratante_valido;
 
-  // Profissionais: carregados do banco quando a aba é aberta.
-  useEffect(() => {
-    if (tab !== "pros" || pros || !podeVerPros) return;
-    listarProfissionais(userId)
-      .then(setPros)
-      .catch((err) => setErroPros(err.message));
-  }, [tab, pros, userId, podeVerPros]);
 
   const hoje = hojeISO();
   const openJobs = useMemo(
@@ -97,9 +95,6 @@ export function FeedScreen({
   const myJobs = jobs.filter((j) => j.isOwner);
   const favoriteJobs = jobs.filter((j) => savedJobIds.includes(j.id));
   const bloqueados = useBloqueados();
-  const prosVisiveis = (pros ?? []).filter((p) => !bloqueados.has(p.id)).filter(
-    (p) => (category === "all" || category === "minhas-areas" || p.areas.includes(category)) && (!termo || [p.nome, p.cidade, p.uf].some((t) => t && String(t).toLowerCase().includes(termo)))
-  );
 
   const activeCategoryLabel = category === "all" ? null : category === "minhas-areas" ? "suas áreas" : category;
   const activeFilterCount =
@@ -125,8 +120,8 @@ export function FeedScreen({
   const tabs = [
     { id: "vagas", label: "Mural de Vagas" },
     ...(mode === "contratar" ? [{ id: "minhas", label: "Minhas Vagas" }] : []),
-    ...(mode === "trabalhar" ? [{ id: "favoritas", label: "Favoritas" }] : []),
-    ...(mode === "contratar" ? [{ id: "pros", label: "Profissionais" }] : []),
+    ...(mode === "trabalhar" ? [{ id: "ofertas", label: "Minhas ofertas" }, { id: "favoritas", label: "Favoritas" }] : []),
+    ...(mode === "contratar" ? [{ id: "pros", label: "Serviços disponíveis" }] : []),
   ];
 
   const Chip = ({ ativo, onClick, children }) => (
@@ -202,7 +197,7 @@ export function FeedScreen({
                   type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder={tab === "pros" ? "Buscar por nome ou cidade" : "Buscar por função, bairro ou cidade"}
+                  placeholder={tab === "pros" ? "Buscar serviço (ex.: faxina, babá, design)" : "Buscar por função, bairro ou cidade"}
                   aria-label="Buscar"
                   className="flex-1 min-w-0 py-3 bg-transparent text-[16px] focus:outline-none"
                 />
@@ -351,31 +346,28 @@ export function FeedScreen({
               </EmptyState>
             ))}
 
-          {tab === "pros" && !podeVerPros && (
-            <div className="p-5 rounded-2xl bg-white border border-slate-100 text-center flex flex-col items-center gap-3">
-              <span className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Users size={24} /></span>
-              <p className="text-[15px] font-extrabold text-slate-800">Lista disponível para contratantes</p>
-              <p className="text-[13px] text-slate-500 leading-relaxed max-w-sm">
-                Para proteger os profissionais, só contratantes cadastrados (pessoa física ou empresa com CNPJ) podem ver e pesquisar os perfis.
-              </p>
-              <button onClick={onCadastrarContratante} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-[13px] font-bold">
-                Cadastrar como contratante
-              </button>
-            </div>
+          {tab === "pros" && (
+            <MuralServicos
+              userId={userId}
+              termo={busca}
+              categoria={category}
+              podeVer={podeVerPros}
+              onCadastrarContratante={onCadastrarContratante}
+              onOpen={onAbrirDisponibilidade}
+              onInteresse={onInteresseDisponibilidade}
+            />
           )}
 
-          {tab === "pros" && podeVerPros &&
-            (erroPros ? (
-              <EmptyState icon={Users} title="Não foi possível carregar" text={erroPros} />
-            ) : pros === null ? (
-              <CardsEsqueleto n={3} />
-            ) : prosVisiveis.length ? (
-              <div className={GRADE}>
-                {prosVisiveis.map((p) => <ProfessionalCard key={p.id} p={p} onOpen={onOpenProfile} />)}
-              </div>
-            ) : (
-              <EmptyState icon={Users} title="Nenhum profissional encontrado" text="Quando alguém se cadastrar nessa área, aparece aqui." />
-            ))}
+          {tab === "ofertas" && (
+            <MinhasOfertas
+              userId={userId}
+              versao={versaoOfertas}
+              onNova={onNovaDisponibilidade}
+              onEditar={onEditarDisponibilidade}
+              onOpen={onAbrirDisponibilidade}
+              onAviso={onAviso}
+            />
+          )}
 
           {tab === "favoritas" &&
             (favoriteJobs.length ? (

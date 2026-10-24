@@ -8,6 +8,9 @@ import { iniciarPresenca } from "./lib/presenca.js";
 import { carregarBloqueados } from "./lib/seguranca.js";
 import { useBloqueados } from "./components/Seguranca.jsx";
 import { BloqueadosScreen } from "./screens/account/BloqueadosScreen.jsx";
+import { DisponibilidadeFormScreen } from "./screens/DisponibilidadeFormScreen.jsx";
+import { DisponibilidadeDetailScreen } from "./screens/DisponibilidadeDetailScreen.jsx";
+import { demonstrarInteresse } from "./lib/disponibilidades.js";
 import { CadastroContratanteScreen } from "./screens/account/CadastroContratanteScreen.jsx";
 import { temEndereco } from "./lib/endereco.js";
 import { AvaliarAppScreen } from "./screens/account/AvaliarAppScreen.jsx";
@@ -331,6 +334,26 @@ function App({ session, perfil, onPerfilAlterado }) {
     }
   };
 
+  // Mural de serviços e disponibilidades.
+  const precisaEndereco = () => Object.prototype.hasOwnProperty.call(profile ?? {}, "cep") && !temEndereco(profile);
+  const handleNovaDisponibilidade = () => {
+    if (precisaEndereco()) {
+      pushToast({ title: "Complete seu endereço", body: "Para publicar, informe seu endereço. Na publicação aparece só a cidade." });
+      return go("editProfile", { pedirEndereco: true });
+    }
+    go("disponibilidadeForm", {});
+  };
+  const handleInteresse = async (d) => {
+    try {
+      const conversaId = await demonstrarInteresse(userId, d);
+      pushToast({ title: "Interesse enviado", body: "O profissional recebeu sua mensagem. Continue pelo chat." });
+      recarregarConversas();
+      go("conversationChat", { conversaId });
+    } catch (err) {
+      pushToast({ title: "Não foi possível enviar", body: err.message });
+    }
+  };
+
   const handleLogout = () => sair();
   const handleDeleteAccount = async () => {
     try {
@@ -373,6 +396,11 @@ function App({ session, perfil, onPerfilAlterado }) {
         profile={profile}
         onAvaliarApp={() => go("avaliarApp")}
         onCadastrarContratante={() => go("contratante")}
+        onNovaDisponibilidade={handleNovaDisponibilidade}
+        onEditarDisponibilidade={(d) => go("disponibilidadeForm", { dispId: d.id })}
+        onAbrirDisponibilidade={(d) => go("disponibilidade", { dispId: d.id })}
+        onInteresseDisponibilidade={handleInteresse}
+        onAviso={pushToast}
       />
     );
   else if (screen === "jobDetail") {
@@ -437,6 +465,30 @@ function App({ session, perfil, onPerfilAlterado }) {
           back();
         }}
         onBack={back}
+      />
+    );
+  else if (screen === "disponibilidadeForm")
+    content = (
+      <DisponibilidadeFormScreen
+        profile={profile}
+        dispId={nav.dispId}
+        onSaved={(nova) => {
+          pushToast(nova ? { title: "Disponibilidade publicada!", body: "Contratantes cadastrados já podem ver sua publicação no mural." } : { title: "Publicação atualizada" });
+          back();
+        }}
+        onBack={back}
+      />
+    );
+  else if (screen === "disponibilidade")
+    content = (
+      <DisponibilidadeDetailScreen
+        dispId={nav.dispId}
+        userId={userId}
+        onBack={back}
+        onOpenProfile={(id) => go("professionalProfile", { profId: id })}
+        onOpenChat={(conversaId) => { recarregarConversas(); go("conversationChat", { conversaId }); }}
+        onEditar={(d) => go("disponibilidadeForm", { dispId: d.id })}
+        onAviso={pushToast}
       />
     );
   else if (screen === "contratante")
