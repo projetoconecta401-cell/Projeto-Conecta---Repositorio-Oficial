@@ -27,7 +27,7 @@ export async function meuPerfil() {
 
 /** Completa o perfil (login com Google/Facebook ou contas antigas). */
 export async function criarPerfil(usuario, dados) {
-  const { error } = await supabase.from("profiles").insert({
+  const base = {
     id: usuario.id,
     email: usuario.email.toLowerCase(),
     nome: dados.nome,
@@ -36,9 +36,14 @@ export async function criarPerfil(usuario, dados) {
     telefone: dados.telefone,
     areas: dados.areas,
     avatar_url: dados.avatar_url ?? null,
-  });
+  };
+  let { error } = await supabase.from("profiles").insert({ ...base, ...(dados.endereco ?? {}), ...(dados.contratante ?? {}) });
+  // Banco ainda sem as colunas de endereço: grava o básico (o endereço é pedido depois).
+  if (error && (error.code === "PGRST204" || error.code === "42703")) ({ error } = await supabase.from("profiles").insert(base));
   if (error) {
-    if (error.code === "23505") throw new Error("Este CPF já está cadastrado em outra conta.");
+    if (error.code === "23505") {
+      throw new Error(/cnpj/i.test(error.message ?? "") ? "Este CNPJ já está cadastrado em outra conta." : "Este CPF já está cadastrado em outra conta.");
+    }
     throw new Error(mensagemDeErro(error, "Não foi possível salvar seu perfil. Confira os dados."));
   }
 }
@@ -71,10 +76,9 @@ export async function notasDosPerfis() {
 
 /** Profissionais cadastrados (exceto eu), com nota média. */
 export async function listarProfissionais(meuId) {
-  const [{ data, error }, notas] = await Promise.all([
-    supabase.from("profiles").select(PUBLICO).neq("id", meuId).order("criado_em", { ascending: false }).limit(200),
-    notasDosPerfis(),
-  ]);
+  const consulta = (cols) => supabase.from("profiles").select(cols).neq("id", meuId).order("criado_em", { ascending: false }).limit(200);
+  let [{ data, error }, notas] = await Promise.all([consulta(`${PUBLICO}, cidade, uf`), notasDosPerfis()]);
+  if (error && /42703|PGRST204|cidade/.test(`${error.code} ${error.message}`)) ({ data, error } = await consulta(PUBLICO));
   if (error) throw new Error(mensagemDeErro(error, "Não foi possível carregar os profissionais."));
   const cvs = await curriculos(data.map((p) => p.id), "id, sobre, formacao");
   return data.map((p) => ({ ...p, ...(cvs[p.id] ?? {}), nota: notas[p.id] ?? null }));
@@ -90,7 +94,8 @@ export async function perfisPorId(ids) {
 /** Perfil público + avaliações recebidas (anônimas: sem quem avaliou nem a vaga). */
 export async function perfilPublico(id) {
   const [{ data: perfil }, notas, { data: avals }, cvs] = await Promise.all([
-    supabase.from("profiles").select(PUBLICO).eq("id", id).maybeSingle(),
+    supabase.from("profiles").select(`${PUBLICO}, cidade, uf`).eq("id", id).maybeSingle()
+      .then((r) => (r.error && /42703|PGRST204/.test(String(r.error.code)) ? supabase.from("profiles").select(PUBLICO).eq("id", id).maybeSingle() : r)),
     notasDosPerfis(),
     supabase
       .from("avaliacoes")

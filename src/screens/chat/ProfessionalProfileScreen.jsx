@@ -29,7 +29,11 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, o
     return (
       <Screen>
         <TopBar title="Perfil" onBack={onBack} />
-        <EmptyState icon={AlertTriangle} title="Perfil não encontrado" />
+        <EmptyState
+          icon={AlertTriangle}
+          title="Perfil indisponível"
+          text="Este perfil não existe ou só pode ser visto por contratantes cadastrados. Para ver profissionais, cadastre-se como contratante em Perfil."
+        />
       </Screen>
     );
 
@@ -53,6 +57,7 @@ export function ProfessionalProfileScreen({ profId, userId, onBack, onMessage, o
         <div className="flex flex-col items-center text-center">
           <Avatar url={p.avatar_url} nome={p.nome} size={88} />
           <h2 className="font-extrabold text-slate-800 text-[18px] mt-3 break-words">{p.nome}</h2>
+          {p.cidade && <p className="text-[12.5px] text-slate-500 mt-0.5">{p.cidade}/{p.uf}</p>}
           <div className="flex items-center gap-1.5 mt-1.5">
             {p.nota ? (
               <>

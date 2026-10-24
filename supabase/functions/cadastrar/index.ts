@@ -31,6 +31,23 @@ function cpfValido(cpf: string) {
   return dv(9) === d[9] && dv(10) === d[10];
 }
 
+// CNPJ numérico ou alfanumérico (formato e dígitos; não consulta a Receita).
+function cnpjValido(v: string) {
+  if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(v) || /^(.)\1{13}$/.test(v)) return false;
+  const val = (ch: string) => ch.charCodeAt(0) - 48;
+  const dv = (base: string, pesos: number[]) => {
+    const s = [...base].reduce((acc, ch, i) => acc + val(ch) * pesos[i], 0);
+    const r = s % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const d1 = dv(v.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const d2 = dv(v.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return d1 === val(v[12]) && d2 === val(v[13]);
+}
+
+const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+const txt = (v: unknown, max: number) => String(v ?? "").trim().replace(/\s+/g, " ").slice(0, max);
+
 function idade(nascimentoISO: string): number {
   const nasc = new Date(nascimentoISO + "T00:00:00Z");
   if (Number.isNaN(nasc.getTime())) return -1;
@@ -102,10 +119,43 @@ export default {
     }
     if (codigo.length !== 6) return erro("Digite o código de 6 dígitos enviado ao seu e-mail.");
 
+    // Endereço (obrigatório) e dados de contratante (opcionais: PF ou PJ com CNPJ).
+    const e = (body.endereco ?? {}) as Record<string, unknown>;
+    const endereco = {
+      cep: String(e.cep ?? "").replace(/\D/g, ""),
+      logradouro: txt(e.logradouro, 120),
+      numero: txt(e.numero, 20),
+      complemento: txt(e.complemento, 60) || null,
+      bairro: txt(e.bairro, 80),
+      cidade: txt(e.cidade, 80),
+      uf: txt(e.uf, 2).toUpperCase(),
+    };
+    if (endereco.cep.length !== 8 || endereco.logradouro.length < 2 || !endereco.numero || endereco.bairro.length < 2 ||
+        endereco.cidade.length < 2 || !UFS.includes(endereco.uf)) {
+      return erro("Informe o endereço completo (CEP, rua, número, bairro, cidade e estado).");
+    }
+    const c = (body.contratante ?? {}) as Record<string, unknown>;
+    const contratante: Record<string, unknown> = {};
+    if (c.contratante_tipo === "pf" || c.contratante_tipo === "pj") {
+      contratante.contratante_tipo = c.contratante_tipo;
+      contratante.empresa = txt(c.empresa, 120) || null;
+      if (c.contratante_tipo === "pj") {
+        const cnpj = String(c.cnpj ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+        if (!cnpjValido(cnpj)) return erro("CNPJ inválido. Confira os números.");
+        if (!contratante.empresa) return erro("Informe o nome da empresa.");
+        contratante.cnpj = cnpj;
+      }
+    }
+
     const admin = ctx.supabaseAdmin;
 
     const { data: cpfUsado } = await admin.rpc("cpf_em_uso", { p_cpf: cpf }); // CPF guardado só como hash
     if (cpfUsado) return erro("Este CPF já está cadastrado. Faça login.", 409);
+
+    if (contratante.cnpj) {
+      const { data: cnpjUsado } = await admin.from("profiles").select("id").eq("cnpj", contratante.cnpj).maybeSingle();
+      if (cnpjUsado) return erro("Este CNPJ já está cadastrado em outra conta.", 409);
+    }
 
     const conferido = await conferirCodigo(admin, email, codigo);
     if (conferido.erro) return erro(conferido.erro);
@@ -126,19 +176,19 @@ export default {
       return erro("Não foi possível criar a conta agora. Tente novamente.", 500);
     }
 
-    const { error: erroPerfil } = await admin.from("profiles").insert({
-      id: data.user.id,
-      nome,
-      cpf,
-      email,
-      data_nascimento: nascimento,
-      telefone,
-      areas,
-    });
+    const perfil = { id: data.user.id, nome, cpf, email, data_nascimento: nascimento, telefone, areas };
+    let { error: erroPerfil } = await admin.from("profiles").insert({ ...perfil, ...endereco, ...contratante });
+    // Banco ainda sem as colunas novas: grava o básico (o endereço é pedido depois).
+    if (erroPerfil && (erroPerfil.code === "PGRST204" || erroPerfil.code === "42703")) {
+      ({ error: erroPerfil } = await admin.from("profiles").insert(perfil));
+    }
     if (erroPerfil) {
       // Sem perfil, a conta não fica pela metade: desfaz a criação.
       await admin.auth.admin.deleteUser(data.user.id);
-      if (erroPerfil.code === "23505") return erro("Este CPF já está cadastrado. Faça login.", 409);
+      if (erroPerfil.code === "23505") {
+        const msg = /cnpj/i.test(erroPerfil.message ?? "") ? "Este CNPJ já está cadastrado em outra conta." : "Este CPF já está cadastrado. Faça login.";
+        return erro(msg, 409);
+      }
       console.error("insert profile:", erroPerfil.message);
       return erro("Não foi possível salvar seu perfil. Tente novamente.", 500);
     }

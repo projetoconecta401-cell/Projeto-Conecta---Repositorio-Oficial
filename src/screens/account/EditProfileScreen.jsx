@@ -6,9 +6,11 @@ import { atualizarPerfil, enviarAvatar } from "../../lib/perfis.js";
 import { cpfOculto, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/validacao.js";
 import { CurriculoEditor } from "../../components/Curriculo.jsx";
 import { lerCurriculo, prepararCurriculo } from "../../lib/curriculo.js";
+import { CamposEndereco } from "../../components/CamposEndereco.jsx";
+import { enderecoParaBanco, lerEndereco, temEndereco, validarEndereco } from "../../lib/endereco.js";
 
 /* Edita nome, telefone, áreas, foto e o resumo profissional (opcional). CPF e e-mail não mudam. */
-export function EditProfileScreen({ profile, onSaved, onBack }) {
+export function EditProfileScreen({ profile, onSaved, onBack, pedirEndereco = false }) {
   const [nome, setNome] = useState(profile.nome || "");
   const [telefone, setTelefone] = useState(mascaraTelefone(profile.telefone || ""));
   const [areas, setAreas] = useState(profile.areas || []);
@@ -16,6 +18,10 @@ export function EditProfileScreen({ profile, onSaved, onBack }) {
   // O resumo profissional só aparece depois que o banco tiver as colunas novas.
   const comCurriculo = Object.prototype.hasOwnProperty.call(profile, "sobre");
   const [cv, setCv] = useState(() => lerCurriculo(profile));
+  // Endereço: obrigatório quando o banco já tem as colunas (contas antigas completam aqui).
+  const comEndereco = Object.prototype.hasOwnProperty.call(profile, "cep");
+  const [end, setEnd] = useState(() => lerEndereco(profile));
+  const [errEnd, setErrEnd] = useState({});
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [erroGeral, setErroGeral] = useState("");
@@ -24,12 +30,17 @@ export function EditProfileScreen({ profile, onSaved, onBack }) {
     const er = validarPerfil({ nome, telefone, areas }, { exigirSenha: false, exigirEmail: false });
     const curriculo = comCurriculo ? prepararCurriculo(cv) : { dados: {}, erros: {} };
     Object.assign(er, curriculo.erros);
+    const eEnd = comEndereco ? validarEndereco(end) : {};
     setErros(er);
+    setErrEnd(eEnd);
     setErroGeral("");
-    if (Object.keys(er).length) return setErroGeral("Confira os campos destacados em vermelho.");
+    if (Object.keys(er).length || Object.keys(eEnd).length) {
+      setTimeout(() => document.querySelector("[data-erro='1']")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+      return setErroGeral("Confira os campos destacados em vermelho.");
+    }
     setSalvando(true);
     try {
-      await atualizarPerfil(profile.id, { nome: nome.trim().replace(/\s+/g, " "), telefone: soDigitos(telefone), areas, ...curriculo.dados });
+      await atualizarPerfil(profile.id, { nome: nome.trim().replace(/\s+/g, " "), telefone: soDigitos(telefone), areas, ...curriculo.dados, ...(comEndereco ? enderecoParaBanco(end) : {}) });
       if (foto) await enviarAvatar(profile.id, foto);
       await onSaved();
     } catch (err) {
@@ -51,6 +62,16 @@ export function EditProfileScreen({ profile, onSaved, onBack }) {
           <Field icon={Phone} type="tel" inputMode="tel" value={telefone} onChange={(e) => setTelefone(mascaraTelefone(e.target.value))} invalid={!!erros.telefone} />
         </Campo>
         <SeletorAreas valor={areas} erro={erros.areas} onChange={setAreas} />
+        {comEndereco && (
+          <div id="endereco">
+            {(pedirEndereco || !temEndereco(profile)) && (
+              <p className="mb-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[12.5px] text-amber-800 font-semibold">
+                Complete seu endereço para se candidatar a vagas e usar todos os recursos do app.
+              </p>
+            )}
+            <CamposEndereco valor={end} onChange={(v) => { setEnd(v); setErrEnd({}); }} erros={errEnd} />
+          </div>
+        )}
         {comCurriculo && <CurriculoEditor valor={cv} onChange={setCv} erros={erros} />}
         <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
           <Campo label="E-mail" ajuda="Não pode ser alterado.">

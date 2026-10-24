@@ -21,7 +21,10 @@ export function mensagemDeErro(error, padrao = "Não foi possível concluir agor
   if (/PGRST205|42P01|Could not find the (table|function)|42703|column .* does not exist/i.test(msg))
     return "O banco ainda não foi atualizado para esta versão do app. Avise o administrador.";
   if (/42501|row-level security|permission denied/i.test(msg)) return "Você não tem permissão para fazer isso.";
+  if (/profiles_cnpj_unico|cnpj/i.test(msg) && /23505|duplicate key/i.test(msg)) return "Este CNPJ já está cadastrado em outra conta.";
   if (/23505|duplicate key/i.test(msg)) return "Isso já foi registrado.";
+  // Mensagens escritas pelos gatilhos do banco (ex.: "CNPJ inválido…", "Informe o endereço…").
+  if (error.code === "23514" && error.message && !/constraint/i.test(error.message)) return error.message;
   if (/23514|check constraint/i.test(msg)) return "Algum campo está fora do formato aceito.";
   if (error.code === "P0001" && error.message) return error.message; // mensagens das funções do banco
   return padrao;

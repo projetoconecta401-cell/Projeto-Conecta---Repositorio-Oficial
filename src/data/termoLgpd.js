@@ -5,8 +5,8 @@
  * todos os usuários terão de aceitar de novo.
  */
 
-export const VERSAO_TERMO = "1.3-2026-10-21";
-export const DATA_TERMO = "21 de outubro de 2026";
+export const VERSAO_TERMO = "1.4-2026-10-24";
+export const DATA_TERMO = "24 de outubro de 2026";
 export const LINK_LEI = "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm";
 export const CONTATO = "projetoconecta401@gmail.com";
 
@@ -28,7 +28,8 @@ export const SECOES_TERMO = [
   {
     titulo: "2. Dados que tratamos",
     itens: [
-      "Cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp, foto de perfil e áreas de atuação.",
+      "Cadastro: nome completo, CPF, e-mail, data de nascimento, telefone/WhatsApp, foto de perfil, áreas de atuação e endereço (CEP, rua, número, complemento, bairro, cidade e estado).",
+      "Se você se cadastrar como contratante: tipo (pessoa física ou empresa), nome da empresa e CNPJ. Conferimos o formato e os dígitos do CNPJ e impedimos que ele seja usado em duas contas; não consultamos a Receita Federal.",
       "O CPF é guardado de forma irreversível (uma \"impressão digital\" criptográfica e os 2 últimos dígitos), só para impedir contas duplicadas: ninguém, nem a equipe do EiFreela, consegue ver o número completo. A data de nascimento serve apenas para confirmar que você tem 18 anos ou mais e não é guardada.",
       "Resumo profissional (opcional): apresentação, escolaridade, curso, instituição, situação (cursando ou concluído), experiências e cursos que você decidir informar.",
       "Login com Google ou Facebook (se você escolher): nome, e-mail e foto pública fornecidos pelo provedor. Não recebemos sua senha.",
@@ -50,7 +51,8 @@ export const SECOES_TERMO = [
   {
     titulo: "4. Com quem compartilhamos (art. 9º, V, e art. 39)",
     itens: [
-      "Outros usuários veem apenas seu nome, foto, áreas de atuação, avaliações (sem mostrar quem avaliou) e o resumo profissional, se você o preencher. E-mail e telefone ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.",
+      "Outros usuários veem apenas seu nome, foto, áreas de atuação, cidade e estado, avaliações (sem mostrar quem avaliou), o resumo profissional (se você o preencher) e, para contratantes, o nome da empresa. Endereço completo, CNPJ, e-mail e telefone ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.",
+      "A lista e os perfis dos profissionais só podem ser vistos por contratantes cadastrados. Quem se candidata a uma vaga também pode ser visto por quem publicou aquela vaga.",
       "O WhatsApp informado numa vaga aparece apenas para o profissional contratado.",
       "Operadores que guardam e processam os dados em nosso nome: Supabase (banco de dados, arquivos e login) e Vercel (hospedagem do site).",
       "Google e Facebook, somente se você escolher entrar por eles.",

@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, MapPin } from "lucide-react";
 import { Avatar, Estrelas } from "../ui.jsx";
 import { resumoFormacao } from "../../lib/curriculo.js";
 
@@ -12,6 +12,9 @@ export function ProfessionalCard({ p, onOpen }) {
       <Avatar url={p.avatar_url} nome={p.nome} size={52} />
       <div className="min-w-0 flex-1 flex flex-col gap-1">
         <p className="font-bold text-slate-800 text-[14.5px] truncate">{p.nome}</p>
+        {p.cidade && (
+          <p className="text-[11.5px] text-slate-500 flex items-center gap-1 truncate"><MapPin size={11} className="shrink-0" /> {p.cidade}/{p.uf}</p>
+        )}
         {p.nota ? <Estrelas valor={p.nota.media} total={p.nota.total} /> : <span className="text-[11.5px] text-slate-400">Novo no EiFreela</span>}
         {p.sobre && <p className="text-[12px] text-slate-500 leading-snug line-clamp-2 break-words">{p.sobre}</p>}
         {!p.sobre && resumoFormacao(p.formacao) && <p className="text-[12px] text-slate-500 truncate">{resumoFormacao(p.formacao)}</p>}

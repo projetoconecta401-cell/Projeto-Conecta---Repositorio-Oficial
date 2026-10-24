@@ -39,9 +39,12 @@ function ConviteAvaliarApp({ profile, onAbrir }) {
 
 export function FeedScreen({
   mode, jobs, loading, userId, posicao, onPedirPosicao, onOpenJob, onPublish, onDeleteJob, onOpenProfile, savedJobIds,
-  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile, onAvaliarApp,
+  onToggleSave, unreadNotifications, onOpenNotifications, onViewProfile, onLogout, profile, onAvaliarApp, onCadastrarContratante,
 }) {
   const [tab, setTab] = useState("vagas");
+  useEffect(() => {
+    if ((mode !== "contratar" && (tab === "pros" || tab === "minhas")) || (mode !== "trabalhar" && tab === "favoritas")) setTab("vagas");
+  }, [mode, tab]);
   const [showPublish, setShowPublish] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("all");
@@ -57,13 +60,18 @@ export function FeedScreen({
   const [pedindoLocal, setPedindoLocal] = useState(false);
   const catScrollRef = useRef(null);
 
+  // Lista de profissionais: só para contratantes válidos (o banco também bloqueia).
+  // Se o banco ainda não tiver a coluna, mantém o comportamento antigo.
+  const temRegraContratante = !!profile && Object.prototype.hasOwnProperty.call(profile, "contratante_valido");
+  const podeVerPros = !temRegraContratante || !!profile?.contratante_valido;
+
   // Profissionais: carregados do banco quando a aba é aberta.
   useEffect(() => {
-    if (tab !== "pros" || pros) return;
+    if (tab !== "pros" || pros || !podeVerPros) return;
     listarProfissionais(userId)
       .then(setPros)
       .catch((err) => setErroPros(err.message));
-  }, [tab, pros, userId]);
+  }, [tab, pros, userId, podeVerPros]);
 
   const hoje = hojeISO();
   const openJobs = useMemo(
@@ -90,7 +98,7 @@ export function FeedScreen({
   const favoriteJobs = jobs.filter((j) => savedJobIds.includes(j.id));
   const bloqueados = useBloqueados();
   const prosVisiveis = (pros ?? []).filter((p) => !bloqueados.has(p.id)).filter(
-    (p) => (category === "all" || category === "minhas-areas" || p.areas.includes(category)) && (!termo || p.nome.toLowerCase().includes(termo))
+    (p) => (category === "all" || category === "minhas-areas" || p.areas.includes(category)) && (!termo || [p.nome, p.cidade, p.uf].some((t) => t && String(t).toLowerCase().includes(termo)))
   );
 
   const activeCategoryLabel = category === "all" ? null : category === "minhas-areas" ? "suas áreas" : category;
@@ -118,7 +126,7 @@ export function FeedScreen({
     { id: "vagas", label: "Mural de Vagas" },
     ...(mode === "contratar" ? [{ id: "minhas", label: "Minhas Vagas" }] : []),
     ...(mode === "trabalhar" ? [{ id: "favoritas", label: "Favoritas" }] : []),
-    { id: "pros", label: "Profissionais" },
+    ...(mode === "contratar" ? [{ id: "pros", label: "Profissionais" }] : []),
   ];
 
   const Chip = ({ ativo, onClick, children }) => (
@@ -194,7 +202,7 @@ export function FeedScreen({
                   type="search"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder={tab === "pros" ? "Buscar profissional pelo nome" : "Buscar por função, bairro ou cidade"}
+                  placeholder={tab === "pros" ? "Buscar por nome ou cidade" : "Buscar por função, bairro ou cidade"}
                   aria-label="Buscar"
                   className="flex-1 min-w-0 py-3 bg-transparent text-[16px] focus:outline-none"
                 />
@@ -343,7 +351,20 @@ export function FeedScreen({
               </EmptyState>
             ))}
 
-          {tab === "pros" &&
+          {tab === "pros" && !podeVerPros && (
+            <div className="p-5 rounded-2xl bg-white border border-slate-100 text-center flex flex-col items-center gap-3">
+              <span className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Users size={24} /></span>
+              <p className="text-[15px] font-extrabold text-slate-800">Lista disponível para contratantes</p>
+              <p className="text-[13px] text-slate-500 leading-relaxed max-w-sm">
+                Para proteger os profissionais, só contratantes cadastrados (pessoa física ou empresa com CNPJ) podem ver e pesquisar os perfis.
+              </p>
+              <button onClick={onCadastrarContratante} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-[13px] font-bold">
+                Cadastrar como contratante
+              </button>
+            </div>
+          )}
+
+          {tab === "pros" && podeVerPros &&
             (erroPros ? (
               <EmptyState icon={Users} title="Não foi possível carregar" text={erroPros} />
             ) : pros === null ? (

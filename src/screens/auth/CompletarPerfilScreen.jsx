@@ -5,6 +5,8 @@ import { Campo, Field, PrimaryButton, Screen, SecondaryButton, TopBar } from "..
 import { FotoPerfil, SeletorAreas } from "../../components/CamposPerfil.jsx";
 import { sair } from "../../lib/auth.js";
 import { criarPerfil, enviarAvatar } from "../../lib/perfis.js";
+import { CamposContratante, CamposEndereco } from "../../components/CamposEndereco.jsx";
+import { contratanteParaBanco, contratanteVazio, enderecoParaBanco, enderecoVazio, validarContratante, validarEndereco } from "../../lib/endereco.js";
 import { dataMaxima18, mascaraCPF, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/validacao.js";
 
 /*
@@ -15,6 +17,10 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
   const meta = usuario.user_metadata ?? {};
   const [d, setD] = useState({ nome: meta.full_name || meta.name || meta.nome || "", cpf: "", nascimento: "", telefone: "", areas: [] });
   const [foto, setFoto] = useState(null);
+  const [end, setEnd] = useState(enderecoVazio);
+  const [contr, setContr] = useState(contratanteVazio);
+  const [errEnd, setErrEnd] = useState({});
+  const [errContr, setErrContr] = useState({});
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [erroGeral, setErroGeral] = useState("");
@@ -44,9 +50,17 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
   const salvar = async () => {
     const er = validarPerfil(d, { exigirSenha: false, exigirEmail: false });
     if (!aceite) er.aceite = "Para continuar, aceite os Termos de Uso e a Política de Privacidade.";
+    const eEnd = validarEndereco(end);
+    const eContr = validarContratante(contr);
     setErros(er);
+    setErrEnd(eEnd);
+    setErrContr(eContr);
     setErroGeral("");
-    if (Object.keys(er).length) return;
+    if (Object.keys(er).length || Object.keys(eEnd).length || Object.keys(eContr).length) {
+      setErroGeral("Confira os campos destacados em vermelho.");
+      setTimeout(() => document.querySelector("[data-erro='1'], .text-red-500")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+      return;
+    }
     setSalvando(true);
     try {
       await criarPerfil(usuario, {
@@ -56,6 +70,8 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
         telefone: soDigitos(d.telefone),
         areas: d.areas,
         avatar_url: foto ? null : fotoProvedor,
+        endereco: enderecoParaBanco(end),
+        contratante: contratanteParaBanco(contr),
       });
       if (foto) await enviarAvatar(usuario.id, foto).catch(() => {});
       await aceitarTermo().catch(() => {}); // registra o aceite (LGPD) marcado nesta tela
@@ -90,11 +106,14 @@ export function CompletarPerfilScreen({ usuario, onDone }) {
         </Campo>
         <SeletorAreas valor={d.areas} erro={erros.areas} onChange={(areas) => setD((x) => ({ ...x, areas }))} />
 
+        <CamposEndereco valor={end} onChange={(v) => { setEnd(v); setErrEnd({}); }} erros={errEnd} />
+        <CamposContratante valor={contr} onChange={(v) => { setContr(v); setErrContr({}); }} erros={errContr} />
+
         <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-[12.5px] text-emerald-900 leading-relaxed">
           <ShieldCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
           <p>
-            <b>Como usamos seus dados:</b> nome, foto, áreas e avaliações aparecem para outros usuários. CPF, e-mail, nascimento e
-            telefone ficam visíveis só para você e servem para proteger sua conta e evitar cadastros duplicados. Não pedimos dados
+            <b>Como usamos seus dados:</b> nome, foto, áreas, cidade e avaliações aparecem para outros usuários. Endereço completo,
+            CNPJ, e-mail e telefone ficam visíveis só para você; o CPF é guardado criptografado e serve para evitar cadastros duplicados. Não pedimos dados
             bancários. Você pode excluir a conta quando quiser, em Perfil.
           </p>
         </div>

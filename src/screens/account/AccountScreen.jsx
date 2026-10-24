@@ -1,13 +1,14 @@
-import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound, FileUser, MessageSquareHeart } from "lucide-react";
+import { ChevronRight, LogOut, Trash2, Calendar, AlertTriangle, Briefcase, History, Pencil, ShieldCheck, Ban, KeyRound, FileUser, MessageSquareHeart, Building2, BadgeCheck, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Field, Screen, TopBar } from "../../components/ui.jsx";
 import { CartaoPush } from "../../components/CartaoPush.jsx";
 import BotaoInstalar from "../../components/BotaoInstalar.jsx";
 import { cpfOculto, mascaraTelefone } from "../../lib/validacao.js";
 import { lerCurriculo, temCurriculo } from "../../lib/curriculo.js";
+import { temEndereco } from "../../lib/endereco.js";
 
 export function AccountScreen({
-  mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade, onOpenAvaliarApp,
+  mode, setMode, onDelete, onLogout, onOpenHistory, onOpenApplications, onOpenDiarias, onOpenBloqueados, onOpenSenha, onOpenPrivacidade, onOpenAvaliarApp, onOpenContratante,
   temSenha = true, iniciarExclusao = false, profile, onEditProfile,
 }) {
   const [confirming, setConfirming] = useState(iniciarExclusao);
@@ -45,7 +46,9 @@ export function AccountScreen({
     { label: "CPF", valor: cpfOculto(profile) },
     { label: "Idade", valor: "Maior de 18 anos" },
     { label: "Telefone / WhatsApp", valor: mascaraTelefone(profile.telefone) },
+    ...(temEndereco(profile) ? [{ label: "Cidade", valor: `${profile.cidade}/${profile.uf}` }] : []),
   ];
+  const comEndereco = Object.prototype.hasOwnProperty.call(profile, "cep");
 
   return (
     <Screen>
@@ -71,8 +74,38 @@ export function AccountScreen({
           ))}
         </div>
         <p className="text-[11.5px] text-slate-400 flex items-start gap-1.5 -mt-3">
-          <ShieldCheck size={13} className="shrink-0 mt-px text-emerald-500" /> E-mail e telefone ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.
+          <ShieldCheck size={13} className="shrink-0 mt-px text-emerald-500" /> E-mail, telefone e endereço completo ficam visíveis só para você. O CPF é guardado criptografado e a data de nascimento não é guardada.
         </p>
+
+        {comEndereco && !temEndereco(profile) && (
+          <button type="button" onClick={onEditProfile} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-left">
+            <span className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0"><MapPin size={20} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold text-amber-900 text-[14px]">Complete seu endereço</span>
+              <span className="block text-[12px] text-amber-800/90 leading-snug">Necessário para se candidatar a vagas e para contratar. Os outros veem só sua cidade.</span>
+            </span>
+            <ChevronRight size={16} className="text-amber-400 shrink-0" />
+          </button>
+        )}
+
+        {comEndereco && (
+          <button type="button" onClick={onOpenContratante} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 text-left">
+            <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${profile.contratante_valido ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+              {profile.contratante_valido ? <BadgeCheck size={20} /> : <Building2 size={20} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold text-slate-800 text-[14px]">
+                {profile.contratante_valido ? "Contratante cadastrado" : "Quero contratar profissionais"}
+              </span>
+              <span className="block text-[12px] text-slate-500 leading-snug">
+                {profile.contratante_valido
+                  ? profile.contratante_tipo === "pj" ? `Empresa${profile.empresa ? `: ${profile.empresa}` : ""}` : "Pessoa física"
+                  : "Cadastre-se como contratante (pessoa física ou CNPJ) para ver os profissionais."}
+              </span>
+            </span>
+            <ChevronRight size={16} className="text-slate-300 shrink-0" />
+          </button>
+        )}
 
         <div>
           <p className="text-[13px] font-bold text-slate-700 mb-2">Como você está usando o app</p>

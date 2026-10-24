@@ -5,6 +5,8 @@ import { Screen, TopBar, Field, Campo, PrimaryButton, SecondaryButton } from "..
 import { FotoPerfil, RequisitosSenha, SeletorAreas } from "../../components/CamposPerfil.jsx";
 import { cadastrar, enviarCodigo } from "../../lib/auth.js";
 import { BotoesSociais } from "../../components/BotoesSociais.jsx";
+import { CamposContratante, CamposEndereco } from "../../components/CamposEndereco.jsx";
+import { contratanteParaBanco, contratanteVazio, enderecoParaBanco, enderecoVazio, validarContratante, validarEndereco } from "../../lib/endereco.js";
 import { guardarAvatarPendente } from "../../lib/perfis.js";
 import { dataMaxima18, mascaraCPF, mascaraTelefone, soDigitos, validarPerfil } from "../../lib/validacao.js";
 
@@ -102,6 +104,10 @@ function EtapaCodigo({ dados, onVoltar }) {
 export function CadastroScreen({ onBack, onOpenTerms }) {
   const [erroSocial, setErroSocial] = useState("");
   const [d, setD] = useState(VAZIO);
+  const [end, setEnd] = useState(enderecoVazio);
+  const [contr, setContr] = useState(contratanteVazio);
+  const [errEnd, setErrEnd] = useState({});
+  const [errContr, setErrContr] = useState({});
   const [foto, setFoto] = useState(null);
   const [aceite, setAceite] = useState(false);
   const [mostrar, setMostrar] = useState(false);
@@ -119,9 +125,14 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
   const continuar = async () => {
     const er = validarPerfil(d);
     if (!aceite) er.aceite = "Aceite os Termos de Uso, a Política de Privacidade e o Termo de Consentimento (LGPD).";
+    const eEnd = validarEndereco(end);
+    const eContr = validarContratante(contr);
     setErros(er);
+    setErrEnd(eEnd);
+    setErrContr(eContr);
     setErroGeral("");
-    if (Object.keys(er).length) {
+    if (Object.keys(er).length || Object.keys(eEnd).length || Object.keys(eContr).length) {
+      setErroGeral("Confira os campos destacados em vermelho.");
       setTimeout(() => document.querySelector("[data-erro='1']")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
       return;
     }
@@ -133,6 +144,8 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
       telefone: soDigitos(d.telefone),
       areas: d.areas,
       senha: d.senha,
+      endereco: enderecoParaBanco(end),
+      contratante: contratanteParaBanco(contr),
     };
     setEnviando(true);
     try {
@@ -215,6 +228,10 @@ export function CadastroScreen({ onBack, onOpenTerms }) {
             }}
           />
         </div>
+
+        <CamposEndereco valor={end} onChange={(v) => { setEnd(v); setErrEnd({}); }} erros={errEnd} />
+
+        <CamposContratante valor={contr} onChange={(v) => { setContr(v); setErrContr({}); }} erros={errContr} />
 
         <div {...marca("senha")}>
           <Campo label="Senha" erro={erros.senha}>

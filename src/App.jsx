@@ -8,6 +8,8 @@ import { iniciarPresenca } from "./lib/presenca.js";
 import { carregarBloqueados } from "./lib/seguranca.js";
 import { useBloqueados } from "./components/Seguranca.jsx";
 import { BloqueadosScreen } from "./screens/account/BloqueadosScreen.jsx";
+import { CadastroContratanteScreen } from "./screens/account/CadastroContratanteScreen.jsx";
+import { temEndereco } from "./lib/endereco.js";
 import { AvaliarAppScreen } from "./screens/account/AvaliarAppScreen.jsx";
 import { AlterarSenhaScreen } from "./screens/account/AlterarSenhaScreen.jsx";
 import { PrivacidadeScreen } from "./screens/account/PrivacidadeScreen.jsx";
@@ -246,6 +248,12 @@ function App({ session, perfil, onPerfilAlterado }) {
   };
 
   const handleApply = async (job) => {
+    // Contas antigas: endereço é pedido antes da primeira candidatura.
+    if (Object.prototype.hasOwnProperty.call(profile ?? {}, "cep") && !temEndereco(profile)) {
+      pushToast({ title: "Complete seu endereço", body: "Para se candidatar, informe seu endereço. Os contratantes veem só sua cidade." });
+      go("editProfile", { pedirEndereco: true });
+      return;
+    }
     try {
       const conversaId = await candidatar(job, userId);
       pushToast({ title: "Candidatura enviada!", body: "O contratante foi avisado. Continue a conversa pelo chat." });
@@ -364,6 +372,7 @@ function App({ session, perfil, onPerfilAlterado }) {
         onLogout={handleLogout}
         profile={profile}
         onAvaliarApp={() => go("avaliarApp")}
+        onCadastrarContratante={() => go("contratante")}
       />
     );
   else if (screen === "jobDetail") {
@@ -410,6 +419,7 @@ function App({ session, perfil, onPerfilAlterado }) {
         onOpenSenha={() => go("senha")}
         onOpenPrivacidade={() => go("privacidade")}
         onOpenAvaliarApp={() => go("avaliarApp")}
+        onOpenContratante={() => go("contratante")}
         temSenha={temSenhaPropria(session.user)}
         iniciarExclusao={!!nav.excluir}
         profile={profile}
@@ -420,9 +430,22 @@ function App({ session, perfil, onPerfilAlterado }) {
     content = (
       <EditProfileScreen
         profile={profile}
+        pedirEndereco={!!nav.pedirEndereco}
         onSaved={async () => {
           await onPerfilAlterado();
           pushToast({ title: "Perfil atualizado" });
+          back();
+        }}
+        onBack={back}
+      />
+    );
+  else if (screen === "contratante")
+    content = (
+      <CadastroContratanteScreen
+        profile={profile}
+        onSaved={async () => {
+          await onPerfilAlterado();
+          pushToast({ title: "Cadastro de contratante salvo", body: "Agora você pode ver e pesquisar os profissionais." });
           back();
         }}
         onBack={back}

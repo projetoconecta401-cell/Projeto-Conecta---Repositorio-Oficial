@@ -177,7 +177,7 @@ export function BoasVindasScreen({ goCadastro, goLogin }) {
           <div className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
             <ShieldCheck size={20} className="text-emerald-600 shrink-0 mt-0.5" />
             <div className="text-[13px] text-emerald-900 leading-relaxed">
-              <p><b>Seus dados protegidos.</b> Outros usuários veem só seu nome, foto, áreas e avaliações. E-mail e telefone ficam visíveis apenas para você; o CPF é guardado criptografado.</p>
+              <p><b>Seus dados protegidos.</b> Outros usuários veem só seu nome, foto, áreas, cidade e avaliações, e a lista de profissionais é exclusiva para contratantes cadastrados. Endereço completo, e-mail e telefone ficam visíveis apenas para você.</p>
               <p className="mt-1.5">O EiFreela <b>não pede dados bancários</b>, cartão ou PIX. Valor e pagamento são combinados direto entre as pessoas.</p>
               <p className="mt-1.5">As vagas mostram só a região aproximada; o endereço exato é combinado pelo chat.</p>
               <p className="mt-1.5">Você pode <b>denunciar e bloquear</b> qualquer pessoa, e o chat avisa quando uma mensagem parece golpe.</p>
